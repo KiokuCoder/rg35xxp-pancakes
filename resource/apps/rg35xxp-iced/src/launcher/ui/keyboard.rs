@@ -3,6 +3,8 @@ use crate::launcher::pad::DPad;
 use iced_core::alignment::Horizontal;
 use iced_core::{Alignment, Color, Length};
 use iced_widget::{container, row, text, Column};
+use crate::launcher::ui;
+use crate::launcher::ui::Action;
 use crate::launcher::ui::toolkit::indicator;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,7 +54,7 @@ impl Keyboard {
         }
     }
 
-    pub fn handle(&mut self, key: DPad) -> bool {
+    pub fn handle(&mut self, key: DPad) -> Option<ui::Action> {
         let layout = self.layouts();
         match key {
             DPad::Up => {
@@ -93,6 +95,9 @@ impl Keyboard {
                 let char = layout[self.current_row][self.current_col];
                 self.text.push_str(char);
             }
+            DPad::B => {
+                return Some(Action::Cancel);
+            }
             DPad::X => {
                 self.text.pop();
             }
@@ -104,7 +109,7 @@ impl Keyboard {
                 };
             }
             DPad::Start => {
-                return true; // 结束输入
+                return Some(Action::Submit); // 结束输入
             }
             _ => {}
         }
@@ -113,7 +118,7 @@ impl Keyboard {
         if self.current_col >= layout[self.current_row].len() {
             self.current_col = layout[self.current_row].len() - 1;
         }
-        return false;
+        None
     }
 
     pub fn view(&self) -> launcher::Element<'_> {

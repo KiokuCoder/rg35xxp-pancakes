@@ -7,6 +7,7 @@ use iced_core::Length;
 use iced_widget::{container, text};
 use log::info;
 use std::collections::HashMap;
+use crate::launcher::ui::Action;
 use crate::launcher::ui::alert::ShowAlert;
 use crate::launcher::ui::keyboard::Keyboard;
 use crate::launcher::ui::list::list_view;
@@ -41,15 +42,17 @@ impl WifiPage {
 
     pub fn handle(&mut self, rt: impl Push<Message>, key: DPad) -> bool {
         if let Some(keyboard) = &mut self.password {
-            if keyboard.handle(key) {
-                if keyboard.text.len() < 8 {
-                    rt.alert("Password must be at least 8 bytes.");
-                } else if let Some(network) = self.networks.get(self.active) {
-                    info!("Connecting to {}", network.ssid);
-                    rt.push(Message::ConnectWifi {
-                        ssid: network.ssid.clone(),
-                        psk: keyboard.text.clone(),
-                    });
+            if let Some(action) = keyboard.handle(key) {
+                if matches!(action, Action::Submit) {
+                    if keyboard.text.len() < 8 {
+                        rt.alert("Password must be at least 8 bytes.");
+                    } else if let Some(network) = self.networks.get(self.active) {
+                        info!("Connecting to {}", network.ssid);
+                        rt.push(Message::ConnectWifi {
+                            ssid: network.ssid.clone(),
+                            psk: keyboard.text.clone(),
+                        });
+                    }
                 }
                 self.password = None;
             }

@@ -4,6 +4,8 @@ use crate::launcher::ui::keyboard::Keyboard;
 use crate::launcher::launcher::Message;
 use crate::launcher::ui::list::list_view;
 use crate::launcher::pad::DPad;
+use crate::launcher::ui;
+use crate::launcher::ui::Action;
 use crate::launcher::ui::toolkit::{setting_check, setting_switch, setting_text};
 
 pub(crate) enum FormItem<Message, Item: Clone + AsRef<str> = String> {
@@ -100,19 +102,27 @@ pub(crate) struct Form<Message, Item: Clone + AsRef<str> = String> {
 impl<Message, Item: Clone + AsRef<str>> Form<Message, Item> {
     pub fn handle(&mut self, rt: impl Push<Message>, key: DPad) {
         if let Some(keyboard) = &mut self.input {
-            if keyboard.handle(key) {
-                let txt = keyboard.text.clone();
-                self.input = None;
-                if let Some(FormItem::Input(Input { value, handle, .. })) =
-                    self.items.get_mut(self.active)
-                {
-                    *value = txt;
-                    if let Some(f) = handle {
-                        rt.push(f(value.clone()));
+            let ret = keyboard.handle(key);
+            match ret {
+                None => {return;}
+                Some(Action::Submit) => {
+                    let txt = keyboard.text.clone();
+                    self.input = None;
+                    if let Some(FormItem::Input(Input { value, handle, .. })) =
+                        self.items.get_mut(self.active)
+                    {
+                        *value = txt;
+                        if let Some(f) = handle {
+                            rt.push(f(value.clone()));
+                        }
                     }
+                    
+                }
+                Some(Action::Cancel) => {
+                    self.input = None;
+                    
                 }
             }
-            return;
         }
         match key {
             DPad::Up => {

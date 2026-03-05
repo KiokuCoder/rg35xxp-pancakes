@@ -12,8 +12,10 @@ pub struct Config {
     pub brightness: u32,
     pub screen_timeout: u32,
     pub wallpaper: String,
+    pub wifi: String,
     pub enable_ssh: bool,
     pub enable_adb: bool,
+    pub enable_wifi: bool,
     pub resource: ResourceConfig,
 }
 #[derive(Debug, Clone, Serialize, Default, Deserialize)]
@@ -29,8 +31,10 @@ impl Default for Config {
             brightness: 200,
             screen_timeout: 120,
             wallpaper: String::default(),
+            wifi: "".to_string(),
             enable_ssh: true,
             enable_adb: true,
+            enable_wifi: true,
             resource: Default::default(),
         }
     }

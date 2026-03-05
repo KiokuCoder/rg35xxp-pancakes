@@ -11,3 +11,8 @@ pub(crate) mod menu;
 pub const MASK_SVG:&[u8] = include_bytes!("../../../assets/mask.svg");
 pub const BACKGROUND_SVG:&[u8] = include_bytes!("../../../assets/background.svg");
 pub const WALLPAPER: &[u8] = include_bytes!("../../../assets/wallpaper.png");
+
+pub enum Action {
+    Submit,
+    Cancel,
+}

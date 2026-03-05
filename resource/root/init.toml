@@ -69,7 +69,7 @@ exec = "/etc/scripts/adbd.sh"
 [service.wpa_supplicant]
 wd = "/"
 exec = "wpa_supplicant"
-args = ["-D", "nl80211", "-i", "wlan0", "-c", "/etc/wpa_supplicant.conf"]
+args = ["-D", "nl80211", "-i", "wlan0", "-C", "/var/run/wpa_supplicant", "-c", "/etc/wpa_supplicant.conf"]
 
 [service.dhcp]
 wd = "/"

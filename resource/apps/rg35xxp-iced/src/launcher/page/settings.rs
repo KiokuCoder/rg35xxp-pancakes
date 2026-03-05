@@ -1,17 +1,17 @@
 use crate::launcher;
 use crate::launcher::backend::{Backend, SystemWatcher, WiFi};
-use crate::launcher::ui::dialog::Confirm;
-use crate::launcher::ui::form::{Form, Select, Text};
+use crate::launcher::config::ConfigManager;
 use crate::launcher::launcher::{LauncherContext, Message};
 use crate::launcher::pad::DPad;
+use crate::launcher::page::file_manager::FileManager;
+use crate::launcher::page::wifi::WifiPage;
 use crate::launcher::page::{Page, PageDescription};
+use crate::launcher::ui::dialog::Confirm;
+use crate::launcher::ui::form::{Form, Select, Text};
+use crate::launcher::ui::toolkit::indicator;
 use crate::launcher::ui::{dialog, form};
 use arc_swap::ArcSwap;
 use std::sync::Arc;
-use crate::launcher::config::ConfigManager;
-use crate::launcher::page::file_manager::FileManager;
-use crate::launcher::page::wifi::WifiPage;
-use crate::launcher::ui::toolkit::indicator;
 
 #[derive(Debug, Clone)]
 pub enum SettingMessage {
@@ -31,7 +31,10 @@ struct StateInner {
 }
 
 impl Settings {
-    pub fn new(backend: impl Backend + SystemWatcher,config:ConfigManager) -> anyhow::Result<Self> {
+    pub fn new(
+        backend: impl Backend + SystemWatcher,
+        config: ConfigManager,
+    ) -> anyhow::Result<Self> {
         let volume = backend.get_volume().unwrap_or(50);
         let brightness = backend.get_brightness().unwrap_or(128);
         let state: Arc<ArcSwap<StateInner>> =
@@ -60,33 +63,34 @@ impl Settings {
         let cfg = config.get_arc();
         let adb = form::Check {
             name: "Enable adb".to_string(),
-            value:cfg.enable_adb ,
+            value: cfg.enable_adb,
             handle: None,
         }
-            .on_change(|v| {
-                if v {
-                    Message::Enable("adb")
-                }else{
-                    Message::Disable("adb")
-                }
-            });
+        .on_change(|v| {
+            if v {
+                Message::Enable("adb")
+            } else {
+                Message::Disable("adb")
+            }
+        });
 
         let ssh = form::Check {
             name: "Enable SSH".to_string(),
-            value:cfg.enable_ssh ,
+            value: cfg.enable_ssh,
             handle: None,
         }
-            .on_change(|v| {
-                if v {
-                    Message::Enable("ssh")
-                }else{
-                    Message::Disable("ssh")
-                }
-            });
+        .on_change(|v| {
+            if v {
+                Message::Enable("ssh")
+            } else {
+                Message::Disable("ssh")
+            }
+        });
 
+        // TODO: 实时获取 wifi 名称
         let wifi = Text {
             name: "WiFi".to_string(),
-            value: ">".to_string(),
+            value: format!("{} >", cfg.wifi),
             handle: None,
         }
         .on_select(|| {
@@ -154,7 +158,7 @@ impl Settings {
         );
         if let Some(dialog) = &self.dialog {
             iced_widget::stack![content, dialog.view()].into()
-        }else{
+        } else {
             content
         }
     }

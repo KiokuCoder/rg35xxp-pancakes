@@ -311,6 +311,10 @@ impl<B: Backend + 'static + Send> Launcher<B> {
             Message::ConnectWifi { ssid, psk } => {
                 if let Err(err) = self.backend.wifi_connect(&ssid, &psk) {
                     error!("wifi connect error: {}", err);
+                } else {
+                    self.config.set(|cfg| {
+                        cfg.wifi = ssid.clone();
+                    });
                 }
             }
             Message::Settings(msg) => {
