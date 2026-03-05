@@ -1,0 +1,19 @@
+Subject: [PATCH] mali_native_window
+---
+Index: fbdev/include/EGL/mali_fbdev_types.h
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/fbdev/include/EGL/mali_fbdev_types.h b/fbdev/include/EGL/mali_fbdev_types.h
+--- a/fbdev/include/EGL/mali_fbdev_types.h	(revision f91ad32d45f09b9ea437bd19b8099b30400bb85f)
++++ b/fbdev/include/EGL/mali_fbdev_types.h	(date 1736045235480)
+@@ -146,6 +146,8 @@
+ 	unsigned short height;
+ } fbdev_window;
+ 
++typedef fbdev_window mali_native_window;
++
+ typedef union mem_handle
+ {
+ 	int fd;                    /* fd to dma memory */

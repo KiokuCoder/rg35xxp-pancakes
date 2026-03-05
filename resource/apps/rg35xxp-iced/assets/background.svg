@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+  <defs>
+    <!-- 定义 45 度交叉网格图案 -->
+    <!-- 保持 8x8 的密小间距，确保条纹数量比最开始多 -->
+    <pattern id="cross-stripes" width="8" height="8" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+
+      <!-- 竖向条纹：宽度从 1 加粗到 2 -->
+      <rect width="4" height="8" fill="rgba(255, 255, 255, 0.05)" />
+
+      <!-- 横向条纹：高度从 1 加粗到 2 -->
+      <rect width="8" height="4" fill="rgba(255, 255, 255, 0.05)" />
+
+    </pattern>
+  </defs>
+
+  <!-- 第一层：半透明暗色底，用于整体压暗背景 -->
+  <rect width="100%" height="100%" fill="rgba(0, 0, 0, 0.65)" />
+
+  <!-- 第二层：交叉斜条纹遮罩 -->
+  <rect width="100%" height="100%" fill="url(#cross-stripes)" />
+</svg>

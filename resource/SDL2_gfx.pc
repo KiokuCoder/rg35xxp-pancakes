@@ -1,0 +1,11 @@
+prefix=/usr
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include/SDL2
+
+Name: SDL2_gfx
+Description: SDL2 graphics primitives and surface functions
+Version: 1.0.4
+Requires: sdl2
+Libs: -L${libdir} -lSDL2_gfx
+Cflags: -I${includedir}

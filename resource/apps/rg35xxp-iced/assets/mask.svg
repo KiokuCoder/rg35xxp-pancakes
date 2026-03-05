@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+  <defs>
+    <!-- 定义 45 度斜纹图案 -->
+    <!-- width 和 height 控制条纹的间距密度，越大越稀疏 -->
+    <pattern id="diagonal-stripes" width="12" height="12" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+      <!-- width="4" 控制单根线条的粗细 -->
+      <!-- fill 控制线条的颜色和透明度，这里用 5% 的白色 -->
+      <rect width="4" height="12" fill="rgba(255, 255, 255, 0.05)" />
+    </pattern>
+  </defs>
+
+  <!-- 第一层：半透明暗色底，用于整体压暗背景 -->
+  <rect width="100%" height="100%" fill="rgba(0, 0, 0, 0.65)" />
+  
+  <!-- 第二层：斜条纹遮罩 -->
+  <rect width="100%" height="100%" fill="url(#diagonal-stripes)" />
+</svg>

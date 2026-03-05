@@ -1,0 +1,99 @@
+[env]
+PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+HOME = "/root"
+SHELL = "/bin/sh"
+RUST_LOG = "debug"
+LD_LIBRARY_PATH = "/lib64:/usr/lib64:/lib:/usr/lib:/usr/local/lib64:/usr/local/lib"
+
+[[mount]]
+dev = "/dev/mmcblk0p1"
+typ = "vfat"
+dir = "/mnt/mmc"
+ops = "rw"
+
+[[mount]]
+dev = "/dev/mmcblk0p6"
+typ = "ext4"
+dir = "/mnt/vendor"
+ops = "rw"
+
+[[mount]]
+dev = "/dev/mmcblk0p7"
+typ = "ext4"
+dir = "/mnt/data"
+ops = "rw"
+
+[[mount]]
+dev = "tmpfs"
+typ = "tmpfs"
+dir = "/var/run"
+ops = "rw,nosuid,nodev,relatime"
+
+[[setup]]
+cmd = "[ ! -e /lib/modules/mali_kbase.ko ] || insmod /lib/modules/mali_kbase.ko"
+
+[[setup]]
+cmd = "[ ! -e /lib/modules/4.9.170/kernel/drivers/net/wireless/rtl8821cs/8821cs.ko ] || insmod /lib/modules/4.9.170/kernel/drivers/net/wireless/rtl8821cs/8821cs.ko"
+
+[[setup]]
+cmd = "[ ! -e /lib/modules/4.9.170/kernel/drivers/bluetooth/rtl_btlpm.ko ] || insmod /lib/modules/4.9.170/kernel/drivers/bluetooth/rtl_btlpm.ko"
+
+[[setup]]
+cmd = "/etc/scripts/udev.sh"
+
+[[setup]]
+cmd = "sleep 3s"
+
+[[setup]]
+cmd = "ip link set lo up"
+
+[[setup]]
+cmd = "ip link set wlan0 up"
+
+[[setup]]
+cmd = "/etc/amixer-setup.sh || true"
+
+[[setup]]
+cmd = "mkdir -p /mnt/sd"
+
+[[setup]]
+cmd = "mount -o iocharset=utf8 /dev/mmcblk1p1 /mnt/sd || true"
+
+[[setup]]
+cmd = "mkdir -p /run/user/0 || true"
+
+[service.adb]
+wd = "/"
+exec = "/etc/scripts/adbd.sh"
+
+[service.wpa_supplicant]
+wd = "/"
+exec = "wpa_supplicant"
+args = ["-D", "nl80211", "-i", "wlan0", "-c", "/etc/wpa_supplicant.conf"]
+
+[service.dhcp]
+wd = "/"
+exec = "busybox"
+args = ["udhcpc", "-i", "wlan0", "-f", "-s", "/etc/scripts/dhcpc.sh"]
+
+[service.ntpd]
+wd = "/"
+exec = "busybox"
+args = ["ntpd", "-n", "-p", "ntp.aliyun.com"]
+
+[service.dropbear]
+wd = "/"
+exec = "dropbear"
+args = ["-R", "-E", "-F"]
+
+[service.launcher]
+wd = "/root"
+exec = "/sbin/rg35xxp-launcher"
+[service.launcher.env]
+RUST_LOG="info"
+
+[[unset]]
+cmd = "sync"
+
+[[unset]]
+cmd = "sleep 3s"

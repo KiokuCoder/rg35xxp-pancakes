@@ -1,0 +1,14 @@
+#!/usr/bin/bash
+
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export HOME=/root
+export SHELL=/bin/sh
+export RUST_LOG=debug
+export LD_LIBRARY_PATH=/lib64:/usr/lib64:/lib:/usr/lib:/usr/local/lib64:/usr/local/lib
+
+[ -x /sbin/rg35xxp-init ] && exec /sbin/rg35xxp-init
+[ -x /sbin/init ] && exec /sbin/init
+
+printf "executable init program not found"
+
+

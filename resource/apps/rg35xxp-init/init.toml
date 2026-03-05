@@ -1,0 +1,71 @@
+[env]
+PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+HOME = "/root"
+SHELL = "/bin/sh"
+RUST_LOG = "debug"
+LD_LIBRARY_PATH = "/lib64:/usr/lib64:/lib:/usr/lib:/usr/local/lib64:/usr/local/lib"
+
+[[mount]]
+dev = "/dev/mmcblk0p4"
+typ = "ext4"
+dir = "/userdata"
+ops = "rw"
+
+[[mount]]
+dev = "tmpfs"
+typ = "tmpfs"
+dir = "/var/run"
+ops = "rw,nosuid,nodev,relatime"
+
+[[setup]]
+cmd = "/etc/init.d/S03modules start"
+
+[[setup]]
+cmd = "/etc/init.d/S05udev start"
+
+[[setup]]
+cmd = "sleep 3s"
+
+[[setup]]
+cmd = "ip link set wlan0 up"
+
+[[setup]]
+cmd = "/etc/amixer-setup.sh || true"
+
+[service.run]
+wd = "/"
+exec = "/bin/bash"
+args = ["-c", "mkdir -p /run/user/0"]
+
+[service.adbd]
+wd = "/"
+exec = "/etc/scripts/adbd.sh"
+
+[service.wpa_supplicant]
+wd = "/"
+exec = "wpa_supplicant"
+args = ["-D", "nl80211", "-i", "wlan0", "-c", "/etc/wpa_supplicant.conf"]
+
+[service.dhcp]
+wd = "/"
+exec = "busybox"
+args = ["udhcpc", "-i", "wlan0", "-f", "-s", "/etc/scripts/dhcpc.sh"]
+
+[service.ntpd]
+wd = "/"
+exec = "busybox"
+args = ["ntpd", "-n", "-p", "ntp.aliyun.com"]
+
+[service.dropbear]
+wd = "/"
+exec = "dropbear"
+args = ["-R", "-E", "-F"]
+
+[service.launcher]
+wd = "/root"
+exec = "/sbin/rg35xxp-launcher"
+[service.launcher.env]
+RUST_LOG="info"
+
+# [[unset]]
+# cmd = "sleep 3s"

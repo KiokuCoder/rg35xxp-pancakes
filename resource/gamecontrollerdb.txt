@@ -1,0 +1,1 @@
+19002cb4010000000100000000010000,ANBERNIC-keys,dpup:h0.1,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,a:b0,b:b1,y:b2,x:b3,leftshoulder:b4,rightshoulder:b5,back:b6,start:b7,guide:b8,lefttrigger:b9,righttrigger:b10,platform:linux,

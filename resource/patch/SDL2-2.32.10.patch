@@ -1,0 +1,674 @@
+Subject: [PATCH] 全志平台支持
+---
+Index: CMakeLists.txt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt	(revision 5d249570393f7a37e037abf22cd6012a4cc56a71)
++++ b/CMakeLists.txt	(revision ca09cd863152a19ca5a6a9e65eca9f76c02da95a)
+@@ -72,6 +72,7 @@
+ include(GNUInstallDirs)
+ 
+ find_package(PkgConfig)
++pkg_check_modules(EGL REQUIRED egl)
+ 
+ list(APPEND CMAKE_MODULE_PATH "${SDL2_SOURCE_DIR}/cmake")
+ include(${SDL2_SOURCE_DIR}/cmake/macros.cmake)
+@@ -1248,6 +1249,8 @@
+ endif()
+ 
+ if(SDL_VIDEO)
++  file(GLOB VIDEO_SUNXI_SOURCES ${SDL2_SOURCE_DIR}/src/video/sunxi/*.c)
++  list(APPEND SOURCE_FILES ${VIDEO_SUNXI_SOURCES})
+   if(SDL_DUMMYVIDEO)
+     set(SDL_VIDEO_DRIVER_DUMMY 1)
+     file(GLOB VIDEO_DUMMY_SOURCES ${SDL2_SOURCE_DIR}/src/video/dummy/*.c)
+@@ -3444,6 +3447,8 @@
+   endforeach()
+ endif()
+ 
++
++list(APPEND EXTRA_LIBS ${EGL_LIBRARIES})
+ if(SDL_SHARED)
+   add_library(SDL2 SHARED ${SOURCE_FILES} ${VERSION_SOURCES})
+   add_dependencies(SDL2 sdl_headers_copy)
+Index: src/hidapi/SDL_hidapi.c
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/hidapi/SDL_hidapi.c b/src/hidapi/SDL_hidapi.c
+--- a/src/hidapi/SDL_hidapi.c	(revision 5d249570393f7a37e037abf22cd6012a4cc56a71)
++++ b/src/hidapi/SDL_hidapi.c	(revision ca09cd863152a19ca5a6a9e65eca9f76c02da95a)
+@@ -35,6 +35,9 @@
+ #include "SDL_thread.h"
+ #include "SDL_timer.h"
+ 
++#ifndef NAME_MAX
++#define NAME_MAX 255
++#endif
+ #ifndef SDL_HIDAPI_DISABLED
+ 
+ #if defined(__WIN32__) || defined(__WINGDK__)
+Index: src/joystick/SDL_gamecontrollerdb.h
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/joystick/SDL_gamecontrollerdb.h b/src/joystick/SDL_gamecontrollerdb.h
+--- a/src/joystick/SDL_gamecontrollerdb.h	(revision 5d249570393f7a37e037abf22cd6012a4cc56a71)
++++ b/src/joystick/SDL_gamecontrollerdb.h	(revision ca09cd863152a19ca5a6a9e65eca9f76c02da95a)
+@@ -872,6 +872,8 @@
+     "03000000b50700001503000010010000,impact,a:b2,b:b3,back:b8,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,dpup:h0.1,leftshoulder:b4,leftstick:b10,lefttrigger:b5,leftx:a0,lefty:a1,rightshoulder:b6,rightstick:b11,righttrigger:b7,rightx:a3,righty:a2,start:b9,x:b0,y:b1,",
+     "030000009b2800008000000020020000,raphnet technologies 1-player WUSBMote v2.2,a:b1,b:b4,back:b2,dpdown:b13,dpleft:b14,dpright:b15,dpup:b12,leftshoulder:b6,rightshoulder:b7,start:b3,x:b0,y:b5,",
+     "030000009b2800000300000001010000,raphnet.net 4nes4snes v1.5,a:b0,b:b4,back:b2,leftshoulder:b6,leftx:a0,lefty:a1,rightshoulder:b7,start:b3,x:b1,y:b5,",
++    "19000000010000000100000000010000,Deeplay-keys,dpup:h0.1,dpright:h0.2,dpdown:h0.4,dpleft:h0.8,a:b0,b:b1,y:b2,x:b3,back:b6,start:b7,leftshoulder:b4,rightshoulder:b5,lefttrigger:b10,righttrigger:b11,guide:b13,",
++    "19002cb4010000000100000000010000,ANBERNIC-keys,dpup:h0.1,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,a:b0,b:b1,y:b2,x:b3,leftshoulder:b4,rightshoulder:b5,back:b6,start:b7,guide:b8,lefttrigger:b9,righttrigger:b10,",
+ #endif
+ #if defined(__OpenBSD__)
+     "030000004c050000c405000000010000,PS4 Controller,a:b1,b:b2,back:b8,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,dpup:h0.1,guide:b12,leftshoulder:b4,leftstick:b10,lefttrigger:a3,leftx:a0,lefty:a1,rightshoulder:b5,rightstick:b11,righttrigger:a4,rightx:a2,righty:a5,start:b9,x:b0,y:b3,",
+Index: src/render/opengles2/SDL_render_gles2.c
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/render/opengles2/SDL_render_gles2.c b/src/render/opengles2/SDL_render_gles2.c
+--- a/src/render/opengles2/SDL_render_gles2.c	(revision 5d249570393f7a37e037abf22cd6012a4cc56a71)
++++ b/src/render/opengles2/SDL_render_gles2.c	(revision ca09cd863152a19ca5a6a9e65eca9f76c02da95a)
+@@ -244,28 +244,8 @@
+ 
+ static int GLES2_LoadFunctions(GLES2_RenderData *data)
+ {
+-#ifdef SDL_VIDEO_DRIVER_UIKIT
+-#define __SDL_NOGETPROCADDR__
+-#elif defined(SDL_VIDEO_DRIVER_ANDROID)
+-#define __SDL_NOGETPROCADDR__
+-#elif defined(SDL_VIDEO_DRIVER_PANDORA)
+-#define __SDL_NOGETPROCADDR__
+-#endif
+-
+-#if defined __SDL_NOGETPROCADDR__
+ #define SDL_PROC(ret, func, params) data->func = func;
+-#else
+-#define SDL_PROC(ret, func, params)                                                            \
+-    do {                                                                                       \
+-        data->func = SDL_GL_GetProcAddress(#func);                                             \
+-        if (!data->func) {                                                                     \
+-            return SDL_SetError("Couldn't load GLES2 function %s: %s", #func, SDL_GetError()); \
+-        }                                                                                      \
+-    } while (0);
+-#endif /* __SDL_NOGETPROCADDR__ */
+-
+ #include "SDL_gles2funcs.h"
+-#undef SDL_PROC
+     return 0;
+ }
+ 
+Index: src/video/SDL_sysvideo.h
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/video/SDL_sysvideo.h b/src/video/SDL_sysvideo.h
+--- a/src/video/SDL_sysvideo.h	(revision 5d249570393f7a37e037abf22cd6012a4cc56a71)
++++ b/src/video/SDL_sysvideo.h	(revision ca09cd863152a19ca5a6a9e65eca9f76c02da95a)
+@@ -484,6 +484,7 @@
+ extern VideoBootStrap NGAGE_bootstrap;
+ extern VideoBootStrap OS2DIVE_bootstrap;
+ extern VideoBootStrap OS2VMAN_bootstrap;
++extern VideoBootStrap Sunxi_bootstrap;
+ 
+ /* Use SDL_OnVideoThread() sparingly, to avoid regressions in use cases that currently happen to work */
+ extern SDL_bool SDL_OnVideoThread(void);
+Index: src/video/SDL_video.c
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/video/SDL_video.c b/src/video/SDL_video.c
+--- a/src/video/SDL_video.c	(revision 5d249570393f7a37e037abf22cd6012a4cc56a71)
++++ b/src/video/SDL_video.c	(revision ca09cd863152a19ca5a6a9e65eca9f76c02da95a)
+@@ -72,6 +72,7 @@
+ 
+ /* Available video drivers */
+ static VideoBootStrap *bootstrap[] = {
++    &Sunxi_bootstrap,
+ #ifdef SDL_VIDEO_DRIVER_COCOA
+     &COCOA_bootstrap,
+ #endif
+Index: src/video/sunxi/SDL_sunxivideo.c
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/video/sunxi/SDL_sunxivideo.c b/src/video/sunxi/SDL_sunxivideo.c
+new file mode 100644
+--- /dev/null	(revision ca09cd863152a19ca5a6a9e65eca9f76c02da95a)
++++ b/src/video/sunxi/SDL_sunxivideo.c	(revision ca09cd863152a19ca5a6a9e65eca9f76c02da95a)
+@@ -0,0 +1,510 @@
++#include "../SDL_egl_c.h"
++#include "../SDL_sysvideo.h"
++#include <EGL/egl.h>
++#include <GLES3/gl3.h>
++
++static int Sunxi_VideoInit(_THIS);
++static void Sunxi_VideoQuit(_THIS);
++static SDL_GLContext Sunxi_GL_CreateContext(_THIS, SDL_Window *window);
++static int Sunxi_GL_MakeCurrent(_THIS, SDL_Window *window, SDL_GLContext context);
++static int Sunxi_GL_SwapWindow(_THIS, SDL_Window *window);
++static void Sunxi_GL_DeleteContext(_THIS, SDL_GLContext context);
++static void Sunxi_PumpEvents(_THIS);
++static int Sunxi_CreateSDLWindow(_THIS, SDL_Window *window);
++static void Sunxi_DeleteWindow(_THIS, SDL_Window *window);
++static void Sunxi_DestroyDevice(SDL_VideoDevice *device);
++static int Sunxi_GL_LoadLibrary(_THIS, const char *path);
++static int Sunxi_CreateWindowFramebuffer(_THIS, SDL_Window *window, Uint32 *format, void **pixels, int *pitch);
++static int Sunxi_UpdateWindowFramebuffer(_THIS, SDL_Window *window, const SDL_Rect *rects, int count);
++static void Sunxi_DestroyWindowFramebuffer(_THIS, SDL_Window *window);
++
++void SDL_EVDEV_Init(void);
++void SDL_EVDEV_Poll(void);
++void SDL_EVDEV_Quit(void);
++
++static const EGLint context_attributes[] = { EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE };
++
++// Vertex shader source
++static const char *vertexShaderSource =
++    "#version 320 es\n"
++    "layout (location = 0) in vec3 a_position;\n"
++    "layout (location = 1) in vec2 a_texCoord;\n"
++    "out vec2 v_texCoord;\n"
++    "void main() {\n"
++    "  gl_Position = vec4(a_position.x, a_position.y, a_position.z, 1.0);\n"
++    "  v_texCoord = a_texCoord;\n"
++    "}\n";
++
++static const char *fragmentShaderSource =
++    "#version 320 es\n"
++    "precision mediump float;\n" // 设置浮点数精度
++    "in vec2 v_texCoord;\n"
++    "uniform sampler2D s_texture;\n"
++    "out vec4 fragColor;\n" // 声明一个输出变量
++    "void main() {\n"
++    "  fragColor = texture(s_texture, v_texCoord);\n" // 输出到 fragColor
++    "  fragColor.xz = fragColor.zx;\n"                // 输出到 fragColor
++    "}\n";
++
++#define GL_CHECK_ERROR()                                                       \
++    do {                                                                       \
++        GLenum gl_error = glGetError();                                        \
++        if (gl_error != GL_NO_ERROR) {                                         \
++            SDL_LogError(SDL_LOG_CATEGORY_ERROR, "OpenGL error %d at %s:%d\n", \
++                         gl_error, __FILE__, __LINE__);                        \
++        }                                                                      \
++    } while (0)
++
++typedef struct
++{
++    EGLDisplay display;
++    EGLConfig config;
++    EGLSurface surface;
++    EGLint width;
++    EGLint height;
++    int windows;
++    GLuint program;
++    GLuint a_position;
++    GLuint a_texCoord;
++    GLuint s_texture;
++} Sunxi_Data;
++
++typedef struct
++{
++    GLuint VAO;
++    GLuint texture;
++} Surface_Date;
++
++static GLuint loadShader(const GLenum type, const char *shaderSrc)
++{
++    GLint compiled;
++
++    // Create the shader object
++    const GLuint shader = glCreateShader(type);
++    if (shader == 0) {
++        return 0;
++    }
++
++    // Load the shader source
++    glShaderSource(shader, 1, &shaderSrc, NULL);
++
++    // Compile the shader
++    glCompileShader(shader);
++
++    // Check the compile status
++    glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
++    if (!compiled) {
++        GLint infoLen = 0;
++        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLen);
++        if (infoLen > 1) {
++            char *infoLog = SDL_malloc(sizeof(char) * infoLen);
++            glGetShaderInfoLog(shader, infoLen, NULL, infoLog);
++            SDL_Log("Error compiling shader:\n%s\n", infoLog);
++            SDL_SetError("Error compiling shader:\n%s\n", infoLog);
++            SDL_free(infoLog);
++        }
++        glDeleteShader(shader);
++        return 0;
++    }
++    return shader;
++}
++
++static void initProgram(Sunxi_Data *data)
++{
++    GLint linked;
++
++    // Load the vertex/fragment shaders
++    const GLuint vertexShader = loadShader(GL_VERTEX_SHADER, vertexShaderSource);
++    const GLuint fragmentShader = loadShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
++    if (!vertexShader) {
++        SDL_Log("load vertex shader failed");
++        return;
++    }
++    if (!fragmentShader) {
++        SDL_Log("load fragment shader failed");
++        return;
++    }
++
++    // Create the program object
++    data->program = glCreateProgram();
++    if (data->program == 0) {
++        SDL_SetError("glCreateProgram failed");
++        return;
++    }
++
++    glAttachShader(data->program, vertexShader);
++    glAttachShader(data->program, fragmentShader);
++
++    // Link the program
++    glLinkProgram(data->program);
++
++    // Check the link status
++    glGetProgramiv(data->program, GL_LINK_STATUS, &linked);
++    if (!linked) {
++        GLint infoLen = 0;
++        glGetProgramiv(data->program, GL_INFO_LOG_LENGTH, &infoLen);
++        if (infoLen > 1) {
++            char *infoLog = SDL_malloc(sizeof(char) * infoLen);
++            glGetProgramInfoLog(data->program, infoLen, NULL, infoLog);
++            SDL_SetError("Error linking program:\n%s\n", infoLog);
++            SDL_free(infoLog);
++        }
++        glDeleteProgram(data->program);
++        return;
++    }
++
++    // Get attribute and uniform locations
++    data->a_position = glGetAttribLocation(data->program, "a_position");
++    data->a_texCoord = glGetAttribLocation(data->program, "a_texCoord");
++    data->s_texture = glGetUniformLocation(data->program, "s_texture");
++
++    // Delete the shaders as they are no longer needed
++    glDeleteShader(vertexShader);
++    glDeleteShader(fragmentShader);
++}
++
++static SDL_VideoDevice *Sunxi_CreateDevice(void)
++{
++    SDL_VideoDevice *device = (SDL_VideoDevice *)SDL_calloc(1, sizeof(SDL_VideoDevice));
++    if (!device) {
++        SDL_OutOfMemory();
++        return NULL;
++    }
++
++    device->VideoInit = Sunxi_VideoInit;
++    device->VideoQuit = Sunxi_VideoQuit;
++    device->GL_CreateContext = Sunxi_GL_CreateContext;
++    device->GL_LoadLibrary = Sunxi_GL_LoadLibrary;
++    device->GL_MakeCurrent = Sunxi_GL_MakeCurrent;
++    device->GL_SwapWindow = Sunxi_GL_SwapWindow;
++    device->GL_DeleteContext = Sunxi_GL_DeleteContext;
++    device->CreateSDLWindow = Sunxi_CreateSDLWindow;
++    device->DestroyWindow = Sunxi_DeleteWindow;
++    device->PumpEvents = Sunxi_PumpEvents;
++
++    device->CreateWindowFramebuffer = Sunxi_CreateWindowFramebuffer;
++    device->UpdateWindowFramebuffer = Sunxi_UpdateWindowFramebuffer;
++    device->DestroyWindowFramebuffer = Sunxi_DestroyWindowFramebuffer;
++
++    device->GL_GetProcAddress = SDL_EGL_GetProcAddress;
++    device->GL_UnloadLibrary = SDL_EGL_UnloadLibrary;
++    device->GL_SetSwapInterval = SDL_EGL_SetSwapInterval;
++    device->GL_GetSwapInterval = SDL_EGL_GetSwapInterval;
++
++    device->free = Sunxi_DestroyDevice;
++    return device;
++}
++static void Sunxi_DestroyDevice(SDL_VideoDevice *device)
++{
++    SDL_free(device);
++}
++static int Sunxi_GL_LoadLibrary(_THIS, const char *path)
++{
++    return SDL_EGL_LoadLibrary(_this, path, (NativeDisplayType)0, 0);
++}
++
++static int Sunxi_CreateSDLWindow(_THIS, SDL_Window *window)
++{
++    Sunxi_Data *data = (Sunxi_Data *)_this->driverdata;
++    if (data->windows) {
++        return SDL_SetError("only one window supported");
++    }
++    data->windows++;
++    window->x = 0;
++    window->y = 0;
++    window->w = data->width;
++    window->h = data->height;
++    window->flags |= SDL_WINDOW_OPENGL;
++    window->flags |= SDL_WINDOW_FULLSCREEN;
++    return 0;
++}
++static int Sunxi_CreateWindowFramebuffer(_THIS, SDL_Window *window, Uint32 *format, void **pixels, int *pitch)
++{
++    if (window->surface) {
++        SDL_SetError("Window already has a surface");
++        return -1;
++    }
++
++    // 不知道为什么使用 RGB 通道还是会扩展到 BGRA 排序，总之先这样
++    SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(0, window->w, window->h, 0, SDL_PIXELFORMAT_RGB888);
++    if (!surface) {
++        return -1;
++    }
++    window->surface = surface;
++    window->surface_valid = SDL_TRUE;
++    *format = SDL_PIXELFORMAT_RGB888;
++    *pixels = surface->pixels;
++    *pitch = surface->pitch;
++
++    return 0;
++}
++static int Sunxi_UpdateWindowFramebuffer(_THIS, SDL_Window *window, const SDL_Rect *rects, int count)
++{
++    const Sunxi_Data *data = (Sunxi_Data *)_this->driverdata;
++    SDL_Surface *surface = window->surface;
++    if (!surface) {
++        SDL_SetError("Window has no surface");
++        return -1;
++    }
++
++    Surface_Date *surface_data = surface->userdata;
++    if (!surface_data) {
++
++        GLuint VAO;
++        GLuint VBO;
++        GLuint EBO;
++        glGenVertexArrays(1, &VAO);
++        glGenBuffers(1, &VBO);
++        glGenBuffers(1, &EBO);
++        glBindVertexArray(VAO);
++
++        const GLfloat vertices[] = {
++            -1.0f, 1.0f, 0.0f,  // Position 0
++            0.0f, 0.0f,         // TexCoord 0
++            -1.0f, -1.0f, 0.0f, // Position 1
++            0.0f, 1.0f,         // TexCoord 1
++            1.0f, -1.0f, 0.0f,  // Position 2
++            1.0f, 1.0f,         // TexCoord 2
++            1.0f, 1.0f, 0.0f,   // Position 3
++            1.0f, 0.0f          // TexCoord 3
++        };
++
++        const unsigned int indices[] = {
++            0, 1, 2, // First triangle
++            0, 2, 3  // Second triangle
++        };
++
++        glBindBuffer(GL_ARRAY_BUFFER, VBO);
++        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
++
++        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
++        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
++
++        glVertexAttribPointer(data->a_position, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void *)0);
++        GL_CHECK_ERROR();
++        glVertexAttribPointer(data->a_texCoord, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void *)(3 * sizeof(GLfloat)));
++        GL_CHECK_ERROR();
++
++        glEnableVertexAttribArray(data->a_position);
++        GL_CHECK_ERROR();
++        glEnableVertexAttribArray(data->a_texCoord);
++        GL_CHECK_ERROR();
++
++        glBindVertexArray(0);
++
++        // Create texture
++        GLuint texture;
++        glGenTextures(1, &texture);
++        glBindTexture(GL_TEXTURE_2D, texture);
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
++        glBindTexture(GL_TEXTURE_2D, 0);
++
++        surface_data = (Surface_Date *)SDL_malloc(sizeof(Surface_Date));
++        surface_data->VAO = VAO;
++        surface_data->texture = texture;
++        surface->userdata = surface_data;
++    }
++
++    glBindTexture(GL_TEXTURE_2D, surface_data->texture);
++    GL_CHECK_ERROR();
++    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, surface->w, surface->h, 0, GL_RGBA, GL_UNSIGNED_BYTE, surface->pixels);
++    GL_CHECK_ERROR();
++    glBindTexture(GL_TEXTURE_2D, 0);
++
++    // Bind the texture
++    glActiveTexture(GL_TEXTURE0);
++    GL_CHECK_ERROR();
++    glBindTexture(GL_TEXTURE_2D, surface_data->texture);
++    GL_CHECK_ERROR();
++
++    // Draw the texture
++    glUseProgram(data->program);
++    GL_CHECK_ERROR();
++    glBindVertexArray(surface_data->VAO);
++    GL_CHECK_ERROR();
++
++    glUniform1i(data->s_texture, 0);
++    GL_CHECK_ERROR();
++
++    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
++    GL_CHECK_ERROR();
++
++    eglSwapBuffers(data->display, data->surface);
++    GL_CHECK_ERROR();
++
++    return 0;
++}
++
++static void Sunxi_DestroyWindowFramebuffer(_THIS, SDL_Window *window)
++{
++    SDL_Surface *surface = window->surface;
++    if (surface) {
++        if (surface->userdata) {
++            Surface_Date *surface_data = (Surface_Date *)surface->userdata;
++            glDeleteTextures(1, &surface_data->texture);
++            SDL_free(surface_data);
++            surface->userdata = NULL;
++        }
++        SDL_FreeSurface(surface);
++        window->surface = NULL;
++        window->surface_valid = SDL_FALSE;
++    }
++}
++
++static void Sunxi_DeleteWindow(_THIS, SDL_Window *window)
++{
++    Sunxi_Data *data = (Sunxi_Data *)_this->driverdata;
++    data->windows--;
++    if (data->windows < 0) {
++        data->windows = 0;
++    }
++}
++static void Sunxi_PumpEvents(_THIS)
++{
++    SDL_EVDEV_Poll();
++}
++static int Sunxi_VideoInit(_THIS)
++{
++    EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
++    if (display == EGL_NO_DISPLAY) {
++        SDL_SetError("EGL display not found");
++        return -1;
++    }
++
++    // initialize the EGL display connection
++    int major, minor;
++    EGLBoolean result = eglInitialize(display, &major, &minor);
++    if (result == EGL_FALSE) {
++        SDL_SetError("EGL: error initialising display");
++        return -1;
++    }
++
++    // get our config from the config class
++    EGLConfig config = NULL;
++    static const EGLint attribute_list[] = { EGL_RED_SIZE, 8, EGL_GREEN_SIZE, 8, EGL_BLUE_SIZE, 8, EGL_ALPHA_SIZE, 8, EGL_SURFACE_TYPE, EGL_WINDOW_BIT, EGL_NONE };
++
++    EGLint totalConfigsFound = 0;
++    result = eglChooseConfig(display, attribute_list, &config, 1, &totalConfigsFound);
++    if (result != EGL_TRUE || totalConfigsFound == 0) {
++        SDL_SetError("EGL: Unable to query for available configs, found %d.\n", totalConfigsFound);
++        return -1;
++    }
++
++    // bind the OpenGL API to the EGL
++    result = eglBindAPI(EGL_OPENGL_ES_API);
++    if (result == EGL_FALSE) {
++        SDL_SetError("EGL: error binding API\n");
++        return -1;
++    }
++
++    const EGLSurface surface = eglCreateWindowSurface(display, config, 0, NULL);
++    if (!surface) {
++        SDL_SetError("EGL: couldn't create window surface\n");
++        return -1;
++    }
++
++    EGLint width, height;
++    eglQuerySurface(display, surface, EGL_WIDTH, &width);
++    eglQuerySurface(display, surface, EGL_HEIGHT, &height);
++
++    Sunxi_Data *data = (Sunxi_Data *)SDL_calloc(1, sizeof(Sunxi_Data));
++    if (!data) {
++        SDL_OutOfMemory();
++        return -1;
++    }
++
++    data->display = display;
++    data->config = config;
++    data->surface = surface;
++    data->width = width;
++    data->height = height;
++    data->windows = 0;
++    data->program = 0;
++    _this->driverdata = data;
++
++    SDL_DisplayMode mode;
++
++    SDL_zero(mode);
++    mode.format = SDL_PIXELFORMAT_RGB888;
++    mode.w = width;
++    mode.h = height;
++    mode.refresh_rate = 60;
++    mode.driverdata = NULL;
++    if (SDL_AddBasicVideoDisplay(&mode) < 0) {
++        return -1;
++    }
++
++    SDL_AddDisplayMode(&_this->displays[0], &mode);
++    SDL_EVDEV_Init();
++    return 0;
++}
++
++static void Sunxi_VideoQuit(_THIS)
++{
++    Sunxi_Data *data = (Sunxi_Data *)_this->driverdata;
++    if (!data)
++        return;
++    if (data->program) {
++        glDeleteProgram(data->program);
++        data->program = 0;
++    }
++    if (data->display && data->surface)
++        eglDestroySurface(data->display, data->surface);
++    if (data->display)
++        eglTerminate(data->display);
++    SDL_free(data);
++    _this->driverdata = NULL;
++    SDL_EVDEV_Quit();
++}
++
++static SDL_GLContext Sunxi_GL_CreateContext(_THIS, SDL_Window *window)
++{
++    const Sunxi_Data *ctx = (Sunxi_Data *)_this->driverdata;
++    const EGLDisplay display = ctx->display;
++    const EGLConfig config = ctx->config;
++
++    // create an EGL rendering context
++    const EGLContext context = eglCreateContext(display, config, EGL_NO_CONTEXT, context_attributes);
++    if (context == EGL_NO_CONTEXT) {
++        SDL_SetError("EGL: couldn't get a valid context\n");
++        return NULL;
++    }
++
++    eglMakeCurrent(display, ctx->surface, ctx->surface, context);
++    // Initialize the shader program after creating the context
++    initProgram(_this->driverdata);
++
++    window->x = 0;
++    window->y = 0;
++    window->w = ctx->width;
++    window->h = ctx->height;
++    return context;
++}
++
++static int Sunxi_GL_MakeCurrent(_THIS, SDL_Window *window, SDL_GLContext context)
++{
++    const Sunxi_Data *data = (Sunxi_Data *)_this->driverdata;
++    const EGLContext ctx = (EGLContext)context;
++    eglMakeCurrent(data->display, data->surface, data->surface, ctx);
++    return 0;
++}
++
++static int Sunxi_GL_SwapWindow(_THIS, SDL_Window *window)
++{
++    Sunxi_Data *data = (Sunxi_Data *)_this->driverdata;
++    eglSwapBuffers(data->display, data->surface);
++    return 0;
++}
++
++static void Sunxi_GL_DeleteContext(_THIS, SDL_GLContext context)
++{
++    Sunxi_Data *data = _this->driverdata;
++    eglDestroyContext(data->display, context);
++}
++
++VideoBootStrap Sunxi_bootstrap = {
++    "sunxi", "sunxi video driver",
++    Sunxi_CreateDevice,
++    NULL
++};
+Index: src/video/sunxi/SDL_sunxivideo.h
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/video/sunxi/SDL_sunxivideo.h b/src/video/sunxi/SDL_sunxivideo.h
+new file mode 100644
+--- /dev/null	(revision ca09cd863152a19ca5a6a9e65eca9f76c02da95a)
++++ b/src/video/sunxi/SDL_sunxivideo.h	(revision ca09cd863152a19ca5a6a9e65eca9f76c02da95a)
+@@ -0,0 +1,4 @@
++#include "../SDL_sysvideo.h"
++
++#define DEBUG_GAMEPAD_MAPPING
++extern VideoBootStrap Sunxi_bootstrap;
