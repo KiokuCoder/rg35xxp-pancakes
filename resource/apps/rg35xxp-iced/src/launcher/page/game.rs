@@ -213,7 +213,7 @@ impl GameList {
                         "/usr/share/libretro/cores/mgba_libretro.so".to_string(),
                         game.path.clone(),
                     ];
-                    rt.push(Message::Launch { exec: "rg35xxp-guard".to_string(), args });
+                    rt.push(Message::Launch { exec: "rg35xxp-guard".to_string(), wd: "/root".to_string(), args });
                 }
             }
             _ => {}

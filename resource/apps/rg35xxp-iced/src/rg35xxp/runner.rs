@@ -1,20 +1,20 @@
-use log::{error};
-use std::process::Command;
-use anyhow::anyhow;
-use iced_core::mouse::Cursor;
-use iced_core::{clipboard, renderer, Event, Size, Theme};
-use iced_runtime::{user_interface, UserInterface};
-use rodio::MixerDeviceSink;
-use crate::rg35xxp::backlight::RG35xxpBackend;
-use crate::rg35xxp::egl::FramebufferWindow;
-use crate::rg35xxp::input;
-use crate::rg35xxp::render::Wrap;
 use crate::launcher::executor;
 use crate::launcher::executor::Pull;
 use crate::launcher::launcher::{Launcher, Message};
 use crate::launcher::pad::DPad;
+use crate::rg35xxp::backlight::RG35xxpBackend;
+use crate::rg35xxp::egl::FramebufferWindow;
+use crate::rg35xxp::input;
+use crate::rg35xxp::render::Wrap;
+use anyhow::anyhow;
+use iced_core::mouse::Cursor;
+use iced_core::{clipboard, renderer, Event, Size, Theme};
+use iced_runtime::{user_interface, UserInterface};
+use log::error;
+use rodio::MixerDeviceSink;
+use std::process::Command;
 
-fn play_wav(mixer:&MixerDeviceSink, data:&'static [u8])  {
+fn play_wav(mixer: &MixerDeviceSink, data: &'static [u8]) {
     match rodio::Decoder::new_wav(std::io::Cursor::new(data)) {
         Ok(source) => {
             mixer.mixer().add(source);
@@ -51,7 +51,9 @@ pub fn run(state: &mut Launcher<RG35xxpBackend>) -> anyhow::Result<Next> {
     // 用来记录是否进入息屏
     let mut last_active_time = std::time::Instant::now();
     let mut last_active_time_flag = false;
-    let mut last_active_timeout = std::time::Duration::from_secs(state.config.get_arc().screen_timeout.into());
+    let mut last_active_timeout =
+        std::time::Duration::from_secs(state.config.get_arc().screen_timeout.into());
+    let mut screenshot = false;
     loop {
         state.update(&push, Message::Ticker);
         for i in 0..300 {
@@ -64,13 +66,18 @@ pub fn run(state: &mut Launcher<RG35xxpBackend>) -> anyhow::Result<Next> {
             messages.extend(pull.pull());
             messages.extend(input.poll_events().into_iter().map(Message::Pad));
             for msg in messages.drain(..) {
-                if let Message::Refresh = msg{
+                if let Message::Refresh = msg {
                     update_flag = true;
+                    continue;
+                }
+                if let Message::Screenshot = msg {
+                    update_flag = true;
+                    screenshot = true;
                     continue;
                 }
                 if let Message::SetTimeout(s) = msg {
                     last_active_timeout = std::time::Duration::from_secs(s as u64);
-                    state.config.set(|cfg|{
+                    state.config.set(|cfg| {
                         cfg.screen_timeout = s;
                     });
                     continue;
@@ -94,9 +101,10 @@ pub fn run(state: &mut Launcher<RG35xxpBackend>) -> anyhow::Result<Next> {
                 }
                 if let Message::Pad(DPad::Power) = msg {
                     return Ok(Next::Hibernate);
-                } else if let Message::Launch{exec,args} = msg {
+                } else if let Message::Launch { exec, args, wd } = msg {
                     let mut cmd = Command::new(exec);
                     cmd.args(args);
+                    cmd.current_dir(wd.clone());
                     return Ok(Next::Cmd(cmd)); // 跳出循环，启动新的软件
                 } else {
                     state.update(&push, msg);
@@ -131,6 +139,12 @@ pub fn run(state: &mut Launcher<RG35xxpBackend>) -> anyhow::Result<Next> {
                 cursor.clone(),
             );
             wrap.present();
+            if screenshot {
+                screenshot = false;
+                // TODO: 异步存储
+                let img = wrap.screenshot();
+                _ = img.save("/root/screenshot.png");
+            }
             cache = ui.into_cache();
         }
     }
@@ -161,4 +175,3 @@ const DEFAULT_SOUND: Sound = Sound {
     dialog_warning: include_bytes!("../../assets/stereo/dialog-warning.wav"),
     message_new_instant: include_bytes!("../../assets/stereo/message-new-instant.wav"),
 };
-

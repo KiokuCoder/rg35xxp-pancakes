@@ -149,11 +149,16 @@ impl SoftwareList {
         }
 
         indicator(
-            cover(grid_col),
+            container(grid_col)
+                .height(Length::Fill)
+                .width(Length::Fill)
+                .style(|_| container::Style::default()
+                    .background(Background::Color(Color::from_rgba8(0, 0, 0, 0.5)))
+                ),
             &[
                 (DPad::Up, "Move"),
                 (DPad::A, "Launch"),
-            ]
+            ],
         )
     }
 
@@ -270,8 +275,15 @@ impl SoftwareList {
             DPad::A | DPad::Start => {
                 let idx = (self.offset + self.selected_y) * COLUMNS + self.selected_x;
                 if let Some(soft) = self.software.get(idx) {
-                    rt.push(Message::Launch { exec: "bash".to_string(), args: vec!["-c".to_string(), soft.cmd.clone()] });
+                    rt.push(Message::Launch {
+                        exec: "bash".to_string(),
+                        wd: soft.wd.clone(),
+                        args: vec!["-c".to_string(), soft.cmd.clone()],
+                    });
                 }
+            }
+            DPad::Menu => {
+                rt.push(Message::Screenshot);
             }
 
             // 其他按键不做处理

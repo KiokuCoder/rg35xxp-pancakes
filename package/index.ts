@@ -106,6 +106,8 @@ import {ogg, theora, vorbis} from "./xiph.ts";
 import uutils from "./uutils.ts";
 import {iw} from "./iw.ts";
 import {tmux} from "./tmux.ts";
+import {rgtv} from "./rgtv.ts";
+import {miyoopod} from "./miyoopod.ts";
 
 register(all)
 register(avahi)
@@ -224,4 +226,5 @@ register(theora)
 register(libmpg123)
 register(iw)
 register(tmux)
-
+register(rgtv)
+register(miyoopod)

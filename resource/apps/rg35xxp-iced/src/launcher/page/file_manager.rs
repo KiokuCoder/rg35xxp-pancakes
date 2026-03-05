@@ -24,6 +24,7 @@ struct State {
     pub loading: bool,
     pub selected: usize,
     pub items: Vec<FileItem>,
+    pub root: Option<PathBuf>,
 }
 pub(crate) struct FileManager {
     pub current_path: PathBuf,
@@ -32,18 +33,45 @@ pub(crate) struct FileManager {
     state: Arc<ArcSwap<State>>,
 }
 
+fn welcome_dir()->State{
+
+    State {
+        loading: false,
+        selected: 0,
+        root: None,
+        items: vec![
+            FileItem {
+                name: "Root".to_string(),
+                path: PathBuf::from("/"),
+                is_dir: true,
+            },
+            FileItem {
+                name: "Home".to_string(),
+                path: PathBuf::from("/root"),
+                is_dir: true,
+            },
+            FileItem {
+                name: "Sdcard".to_string(),
+                path: PathBuf::from("/mnt/mmc"),
+                is_dir: true,
+            },
+        ]
+    }
+
+}
 impl FileManager {
-    pub fn new(path: impl AsRef<Path>) -> Self {
+    pub fn new() -> Self {
         Self {
-            current_path: path.as_ref().to_path_buf(),
-            state: Arc::new(ArcSwap::from_pointee(Self::load_path_sync(path))),
+            current_path: PathBuf::from("/"),
+            state: Arc::new(ArcSwap::from_pointee(welcome_dir())),
             viewing_image: None,
             viewing_text: None,
         }
     }
 
     async fn load_path(state: Arc<ArcSwap<State>>,path: impl AsRef<Path>) {
-        state.store(Arc::new(State{selected:0, loading: true, items: vec![] }));
+        let root = state.load().root.clone();
+        state.store(Arc::new(State { selected: 0, loading: true, items: vec![], root: root.clone() }));
         let mut items = vec![];
         if let Ok(mut entries) = tokio::fs::read_dir(path.as_ref()).await {
             while let Ok(Some(entry)) = entries.next_entry().await {
@@ -61,47 +89,46 @@ impl FileManager {
                 a.name.cmp(&b.name)
             }
         });
-        state.store(Arc::new(State { selected: 0, loading: false, items }));
+        state.store(Arc::new(State { selected: 0, loading: false, items, root }));
     }
 
-    fn load_path_sync(p:impl AsRef<Path>) -> State {
-        let mut items = vec![];
-        if let Ok(entries) = std::fs::read_dir(p.as_ref()) {
-            for entry in entries.flatten(){
-                let path = entry.path();
-                let is_dir = path.is_dir();
-                let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
-                items.push(FileItem { name, path, is_dir });
-            }
-        }
-        items.sort_by(|a, b| {
-            if a.is_dir != b.is_dir {
-                b.is_dir.cmp(&a.is_dir)
-            } else {
-                a.name.cmp(&b.name)
-            }
+    fn selected(&self, idx: usize) {
+        self.set_state(|s| {
+            s.selected = idx;
         });
-        State { selected: 0, loading: false, items }
     }
 
-    fn selected(&self,idx: usize) {
-        let s = self.state.swap(Arc::new(State { selected: 0, loading: true, items: vec![] }));
+    fn set_state(&self,f:impl Fn(&mut State)) {
+        let s = self.state.swap(Arc::new(State { selected: 0, loading: true, items: vec![],root:None }));
         match Arc::try_unwrap(s) {
             Ok(mut s) => {
-                s.selected = idx;
+                f(&mut s);
                 self.state.store(Arc::new(s));
             }
             Err(s) => {
                 let mut s = (*s).clone();
-                s.selected = idx;
+                f(&mut s);
                 self.state.store(Arc::new(s));
             }
         }
+
     }
 
     pub fn view(&self) -> launcher::Element<'_> {
         let mut column = Column::new().spacing(5);
         let state:Arc<State> = self.state.load_full();
+
+        if state.loading {
+            return indicator(
+                container(text("loading...")).center(Length::Fill),
+                &[
+                    (DPad::Up, "Up"),
+                    (DPad::Down, "Down"),
+                    (DPad::A, "Open"),
+                    (DPad::B, "Back"),
+                ],
+            ).into();
+        }
 
         // Path header
         let header = container(
@@ -128,9 +155,13 @@ impl FileManager {
         
         column = column.push(list);
 
-        let content = ui::toolkit::cover(column)
+        let content = container(column)
             .width(Length::Fill)
-            .height(Length::Fill);
+            .height(Length::Fill)
+            .style(|_|{
+                container::Style::default()
+                    .background(Background::Color(Color::from_rgba8(0, 0, 0, 0.3)))
+            });
 
         let main_view = indicator(
             content,
@@ -146,7 +177,11 @@ impl FileManager {
             let overlay = self.view_image_overlay(image_handle.clone());
             stack![main_view, overlay].into()
         } else if let Some((offset, text)) = &self.viewing_text {
-            let overlay =ui::toolkit::cover(multi_line_view(vec![iced_widget::text(text)],*offset));
+            let overlay = container(
+                multi_line_view(vec![iced_widget::text(text)], *offset)
+            ).style(|_| container::Style::default()
+                .background(Background::Color(Color::from_rgb8(250, 250, 250)))
+            );
             stack![main_view, overlay].into()
         } else {
             main_view
@@ -179,11 +214,11 @@ impl FileManager {
 
     fn view_item<'a>(&self, item:&FileItem, is_selected: bool) -> launcher::Element<'a> {
         let icon = if item.is_dir {
-            icon::icon("folder")
+            icon::light("folder")
         } else if is_image(&item.path) {
-            icon::icon("image")
+            icon::light("image")
         } else {
-            icon::icon("files")
+            icon::light("files")
         };
         let content = row![
             icon,
@@ -254,6 +289,9 @@ impl FileManager {
                 if let Some(item) = state.items.get(selected) {
                     if item.is_dir {
                         self.current_path = item.path.clone();
+                        if state.root.is_none() {
+                            self.set_state(|s| s.root = Some(item.path.clone()));
+                        }
                         self.reload(&rt);
                     } else if is_text(&item.path) {
                         if let Ok(text) = std::fs::read_to_string(&item.path) {
@@ -272,6 +310,10 @@ impl FileManager {
                 }
             }
             DPad::B => {
+                if state.root.as_ref().map(|p| p.as_path() == self.current_path.as_path()).unwrap_or_default() {
+                    self.state.store(Arc::new(welcome_dir()));
+                    return false;
+                }
                 if let Some(parent) = self.current_path.parent() {
                     if self.current_path != Path::new("/") {
                         self.current_path = parent.to_path_buf();

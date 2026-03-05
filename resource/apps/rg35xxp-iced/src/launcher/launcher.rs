@@ -30,6 +30,7 @@ pub enum Message {
     Launch {
         exec: String,
         args: Vec<String>,
+        wd:String,
     },
     SetVolume(u32),
     SetBrightness(u32),
@@ -38,6 +39,7 @@ pub enum Message {
     Enable(&'static str),
     Disable(&'static str),
     Ticker,          // 300 帧一次
+    Screenshot,          // 截图指令
     ScanWifi,
     Shutdown,
     Reboot,
@@ -360,6 +362,7 @@ impl<B: Backend + 'static + Send> Launcher<B> {
                     _ = self.backend.stop("adb");
                 }
             }
+            Message::Screenshot => {}
         }
     }
 

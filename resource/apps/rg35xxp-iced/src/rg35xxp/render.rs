@@ -1,8 +1,10 @@
+use std::path::Path;
 use iced::advanced::graphics;
 use iced::wgpu;
 use iced::wgpu::{wgt, Device, DeviceDescriptor, GlBackendOptions, Texture};
 use iced::wgpu::hal::gles;
 use iced::wgpu::hal::gles::{TextureFormatDesc, TextureInner};
+use iced::wgpu::wgt::PollType;
 use iced_core::{Color, Font, Pixels, Size};
 use iced_graphics::{Shell, Viewport};
 use iced_wgpu::Engine;
@@ -104,7 +106,7 @@ impl Wrap {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format, // 通常是 Rgba8Unorm
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_SRC,
             view_formats: &[],
         };
         let offscreen_texture = device.create_texture(&texture_desc);
@@ -315,6 +317,82 @@ impl Wrap {
         self.queue.submit(Some(encoder.finish()));
         self.framebuffer.check_error();
         self.framebuffer.present();
+    }
+    pub fn screenshot(&mut self) -> image::RgbaImage {
+        let (width, height) = self.size();
+        let pixel_size = 4; // Rgba8Unorm 是 4 字节/像素
+
+        // WGPU 要求 copy_texture_to_buffer 的 bytes_per_row 必须是 256 的整数倍
+        let align = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
+        let unpadded_bytes_per_row = width * pixel_size;
+        let padded_bytes_per_row = (unpadded_bytes_per_row + align - 1) / align * align;
+        let buffer_size = (padded_bytes_per_row * height) as wgpu::BufferAddress;
+
+        // 1. 创建用于接收数据的 Buffer
+        let buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Screenshot Readback Buffer"),
+            size: buffer_size,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+
+        // 2. 录制拷贝命令：将 offscreen_texture 拷贝到 buffer
+        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Screenshot Encoder"),
+        });
+
+        encoder.copy_texture_to_buffer(
+            wgpu::TexelCopyTextureInfo {
+                texture: &self.offscreen_texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            wgpu::TexelCopyBufferInfo {
+                buffer: &buffer,
+                layout: wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(padded_bytes_per_row),
+                    rows_per_image: Some(height),
+                },
+            },
+            wgpu::Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
+        );
+
+        // 提交命令
+        let idx = self.queue.submit(Some(encoder.finish()));
+
+        // 3. 映射 Buffer 到 CPU 内存
+        let buffer_slice = buffer.slice(..);
+        let (tx, rx) = std::sync::mpsc::channel();
+        buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
+            tx.send(result).unwrap();
+        });
+
+        // 强制等待 GPU 执行完毕
+        _ = self.device.poll(PollType::Wait { submission_index: Some(idx), timeout: None });
+
+        rx.recv().unwrap().expect("Failed to map screenshot buffer");
+
+        // 4. 读取数据并剔除 256 字节对齐产生的 Padding
+        let padded_data = buffer_slice.get_mapped_range();
+        let mut unpadded_data = Vec::with_capacity((width * height * 4) as usize);
+
+        for chunk in padded_data.chunks(padded_bytes_per_row as usize) {
+            unpadded_data.extend_from_slice(&chunk[..unpadded_bytes_per_row as usize]);
+        }
+
+        // 必须在 unmap 之前 drop 掉 mapped_range 视图
+        drop(padded_data);
+        buffer.unmap();
+
+        // 5. 转换为 image::RgbaImage
+        image::RgbaImage::from_raw(width, height, unpadded_data)
+            .expect("Failed to create RgbaImage from raw pixel data")
     }
 }
 

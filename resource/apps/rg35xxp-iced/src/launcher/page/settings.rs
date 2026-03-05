@@ -172,15 +172,14 @@ impl Settings {
         if &d.name == "wifi" {
             self.pages.push(Page::Wifi(WifiPage::new()))
         } else if &d.name == "file_manager" {
-            self.pages.push(Page::FileManager(FileManager::new("/")))
+            self.pages.push(Page::FileManager(FileManager::new()))
         }
     }
     pub fn update(&mut self, message: SettingMessage) {
-        let s:Vec<String> = (0..20).map(|i|format!("Are you sure? -- {}", i)).collect();
         match message {
             SettingMessage::ShowShutdownConfirm => {
                 self.dialog = Some(
-                    dialog::Confirm::new("Shutdown Confirm", s.join("\n"))
+                    dialog::Confirm::new("Shutdown Confirm", "")
                         .on_confirm(|b| if b { Message::Shutdown } else { Message::Noop }),
                 );
             }

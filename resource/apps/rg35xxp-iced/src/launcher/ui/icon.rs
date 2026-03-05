@@ -103,3 +103,19 @@ pub fn icon(name: &str) -> launcher::Element<'static> {
     }
     .icon(name)
 }
+pub fn light(name: &str) -> launcher::Element<'static> {
+    IconManager {
+        color: Color::WHITE,
+        style: Style::default(),
+        size: 24,
+    }
+        .icon(name)
+}
+pub fn dark(name: &str) -> launcher::Element<'static> {
+    IconManager {
+        color: Color::WHITE,
+        style: Style::default(),
+        size: 24,
+    }
+        .icon(name)
+}

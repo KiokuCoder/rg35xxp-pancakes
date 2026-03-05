@@ -1,0 +1,1 @@
+主题声音由 [sound-theme-freedesktop](https://www.freedesktop.org/wiki/Specifications/sound-theme-spec/) 项目使用 ffmpeg 转换得到 `.wav` 格式文件。

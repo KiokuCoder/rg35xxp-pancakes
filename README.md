@@ -75,3 +75,10 @@ Packages are defined using a `Pack` interface. See `package/zlib.ts` or `package
 
 ---
 *Disclaimer: This project is provided as-is. Use it at your own risk.*
+
+## Contributing
+
+Packages are defined using a `Pack` interface. See `package/zlib.ts` or `package/busybox.ts` for examples on how to describe software synchronization (downloading) and compilation (make/cmake/meson).
+
+---
+*Disclaimer: This project is provided as-is. Use it at your own risk.*

@@ -199,9 +199,8 @@ pub fn indicator<'a>(
 
     let footer = container(
         row![
-            iced_widget::space(),
-            indicator_row,
-            iced_widget::space().height(20)
+            iced_widget::space().width(20),
+            indicator_row
         ]
             .height(Length::Fill)
             .align_y(alignment::Vertical::Center),

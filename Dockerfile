@@ -16,5 +16,12 @@ RUN mkdir -p ~/.config/fish && \
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 RUN /root/.cargo/bin/rustup target add aarch64-unknown-linux-gnu
 
+RUN ARCH=$(dpkg --print-architecture) && \
+    if [ "$ARCH" = "amd64" ]; then GO_ARCH="amd64"; elif [ "$ARCH" = "arm64" ]; then GO_ARCH="arm64"; else GO_ARCH="$ARCH"; fi && \
+    wget https://go.dev/dl/go1.26.0.linux-${GO_ARCH}.tar.gz -O go.tar.gz && \
+    tar -C /usr/local -xzf go.tar.gz && \
+    rm go.tar.gz
+RUN echo 'set --export PATH /usr/local/go/bin $PATH' >> ~/.config/fish/config.fish
+
 WORKDIR /work
 ENTRYPOINT ["/usr/bin/fish"]
