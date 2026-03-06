@@ -1,6 +1,6 @@
 import {$} from "bun"
-import {mesonBuild} from "../scripts/helper.ts";
-import type {Pack} from "../scripts/pkg.ts";
+import {mesonBuild} from "../../scripts/helper.ts";
+import type {Pack} from "../../scripts/pkg.ts";
 
 
 const version = 'libdrm-2.4.110';

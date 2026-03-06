@@ -1,0 +1,166 @@
+Subject: [PATCH] Use SDL2 from system
+---
+Index: CMakeLists.txt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt	(revision efc5923d86cd762706d819e8fa6425faa3c23f79)
++++ b/CMakeLists.txt	(date 1772731073518)
+@@ -469,87 +469,52 @@
+ )
+ endif()
+ 
+-if(IOS)
+-set(SDL_SHARED_ENABLED_BY_DEFAULT OFF)
+-set(SDL_SHARED OFF)
+-set(HAVE_GCC_WDECLARATION_AFTER_STATEMENT OFF CACHE BOOL "Intentionally disabled for SDL on iOS: can declaration-after-statement warning be used" FORCE)
+-set(HAVE_GCC_WERROR_DECLARATION_AFTER_STATEMENT OFF CACHE BOOL "Intentionally disabled for SDL on iOS: can declaration-after-statement error warning be used" FORCE)
+-add_subdirectory(external/SDL)
+-find_library(SDL2 NAMES SDL2-static SDL2main)
+-list(APPEND KRKRSDL2_LIBS
+-	SDL2-static
+-	SDL2main
+-)
+-list(APPEND KRKRSDL2_DEFINITIONS
+-	USE_SDL_MAIN
+-)
+-get_target_property(SDL2_INCLUDE_DIRS SDL2-static INCLUDE_DIRECTORIES)
+-set(SDL2_LIBRARIES SDL2-static)
+-elseif((APPLE AND NOT IOS) OR (${CMAKE_SYSTEM_NAME} STREQUAL "Linux"))
+-set(SDL_SHARED_ENABLED_BY_DEFAULT OFF)
+-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/SDL)
+-find_library(SDL2 NAMES SDL2-static)
+-list(APPEND KRKRSDL2_LIBS
+-	SDL2-static
+-)
+-get_target_property(SDL2_INCLUDE_DIRS SDL2-static INCLUDE_DIRECTORIES)
+-set(SDL2_LIBRARIES SDL2-static)
+-elseif(ANDROID)
+-set(SDL_SHARED_ENABLED_BY_DEFAULT ON)
+-set(SDL_STATIC_ENABLED_BY_DEFAULT OFF)
+-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/SDL)
+-find_library(SDL2 NAMES SDL2 SDL2main)
+-list(APPEND KRKRSDL2_LIBS
+-	SDL2
+-	SDL2main
+-)
+-list(APPEND KRKRSDL2_DEFINITIONS
+-	USE_SDL_MAIN
+-)
+-elseif(WIN32)
+-set(SDL_SHARED_ENABLED_BY_DEFAULT OFF)
+-set(SDL_SHARED OFF)
+-set(HAVE_WINDOWS_GAMING_INPUT_H NO)
+-add_subdirectory(external/SDL)
+-find_library(SDL2 NAMES SDL2-static)
+-list(APPEND KRKRSDL2_LIBS
+-	SDL2-static
+-)
+-get_target_property(SDL2_INCLUDE_DIRS SDL2-static INCLUDE_DIRECTORIES)
+-set(SDL2_LIBRARIES SDL2-static)
+-elseif(VITA)
+-set(SDL_SHARED_ENABLED_BY_DEFAULT OFF)
+-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/SDL)
+-find_library(SDL2 NAMES SDL2-static)
+-
+-list(APPEND KRKRSDL2_LIBS
+-	stdc++
+-	pthread
+-	stdc++
+-
+-	SDL2-static
+-	SceAppUtil_stub
+-	SceShellSvc_stub
+-	m
+-	z
+-)
+-get_target_property(SDL2_INCLUDE_DIRS SDL2-static INCLUDE_DIRECTORIES)
+-set(SDL2_LIBRARIES SDL2-static)
+-elseif(NINTENDO_SWITCH)
+-find_package(PkgConfig REQUIRED)
+-pkg_check_modules(SDL2 REQUIRED IMPORTED_TARGET sdl2)
+-
+-list(APPEND KRKRSDL2_LIBS
+-	PkgConfig::SDL2
+-)
++# ==========================================================
++# Use System SDL2 instead of Embedded
++# ==========================================================
++if(NINTENDO_SWITCH)
++    find_package(PkgConfig REQUIRED)
++    pkg_check_modules(SDL2 REQUIRED IMPORTED_TARGET sdl2)
++    list(APPEND KRKRSDL2_LIBS PkgConfig::SDL2)
+ else()
+-find_package(SDL2 REQUIRED)
+-include_directories(${SDL2_INCLUDE_DIRS})
++    # Find SDL2 installed on the system
++    find_package(SDL2 REQUIRED)
++
++    # Modern CMake uses Imported Targets
++    if(TARGET SDL2::SDL2)
++        list(APPEND KRKRSDL2_LIBS SDL2::SDL2)
++    elseif(TARGET SDL2::SDL2-static)
++        list(APPEND KRKRSDL2_LIBS SDL2::SDL2-static)
++    else()
++        # Fallback for older CMake / SDL2 versions
++        list(APPEND KRKRSDL2_LIBS ${SDL2_LIBRARIES})
++        include_directories(${SDL2_INCLUDE_DIRS})
++    endif()
+ 
+-list(APPEND KRKRSDL2_LIBS
+-	${SDL2_LIBRARIES}
+-)
++    # Some systems like iOS and Android need SDL2main
++    if(IOS OR ANDROID)
++        if(TARGET SDL2::SDL2main)
++            list(APPEND KRKRSDL2_LIBS SDL2::SDL2main)
++        else()
++            list(APPEND KRKRSDL2_LIBS SDL2main)
++        endif()
++        list(APPEND KRKRSDL2_DEFINITIONS USE_SDL_MAIN)
++    endif()
++
++    # Append platform-specific stub/helper libraries originally used for VITA
++    if(VITA)
++        list(APPEND KRKRSDL2_LIBS
++            stdc++
++            pthread
++            SceAppUtil_stub
++            SceShellSvc_stub
++            m
++            z
++        )
++    endif()
+ endif()
++# ==========================================================
++
+ 
+ if(NOT (${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten"))
+ set(XNASONG OFF CACHE BOOL "Intentionally disabled for FAudio: enable XNA_Song.c" FORCE)
+@@ -674,7 +639,7 @@
+ 	SOURCE ${EMBED_DATA_PATH} ${IOS_RESOURCES_ROOT}/Images.xcassets
+ 	PROPERTY MACOSX_PACKAGE_LOCATION "Resources"
+ )
+-target_sources(${KRKRSDL2_NAME} PRIVATE 
++target_sources(${KRKRSDL2_NAME} PRIVATE
+ 	${EMBED_DATA_PATH}
+ 	${IOS_RESOURCES_ROOT}/Images.xcassets
+ )
+@@ -699,7 +664,7 @@
+ 	SOURCE ${EMBED_DATA_PATH} ${MACOS_RESOURCES_ROOT}/krkrsdl2.icns
+ 	PROPERTY MACOSX_PACKAGE_LOCATION "Resources"
+ )
+-target_sources(${KRKRSDL2_NAME} PRIVATE 
++target_sources(${KRKRSDL2_NAME} PRIVATE
+ 	${EMBED_DATA_PATH}
+ 	${MACOS_RESOURCES_ROOT}/krkrsdl2.icns
+ )
+@@ -765,4 +730,4 @@
+ # Share certain variables to projects that include this one
+ set(KRKRSDL2_NAME ${KRKRSDL2_NAME} PARENT_SCOPE)
+ set(KRKRSDL2_REPO_DIR ${KRKRSDL2_REPO_DIR} PARENT_SCOPE)
+-endif()
++endif()
+\ No newline at end of file

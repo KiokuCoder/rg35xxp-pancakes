@@ -1,5 +1,5 @@
-import type {Pack} from "../scripts/pkg.ts";
-import {cmakeBuild, v} from "../scripts/helper.ts";
+import type {Pack} from "../../../scripts/pkg.ts";
+import {cmakeBuild, v} from "../../../scripts/helper.ts";
 import {$} from "bun";
 
 const version = '0.15.2';

@@ -1,6 +1,6 @@
 import {$} from "bun"
-import {cmakeArgs, v} from "../scripts/helper.ts";
-import type {Pack} from "../scripts/pkg.ts";
+import {cmakeArgs, v} from "../../scripts/helper.ts";
+import type {Pack} from "../../scripts/pkg.ts";
 
 const version = 'mgba-0.10.5';
 export const mgba0: Pack = {

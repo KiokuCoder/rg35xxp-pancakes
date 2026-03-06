@@ -1,6 +1,7 @@
 import {$} from "bun"
-import type {Pack} from "../scripts/pkg.ts";
+import type {Pack} from "../../scripts/pkg.ts";
 
+// 可以通过编译，但是无法启动，需要打补丁
 export const miyoopod: Pack = {
     name: "miyoopod",
     version: "0.1.0",

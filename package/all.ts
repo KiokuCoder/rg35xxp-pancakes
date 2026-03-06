@@ -38,8 +38,7 @@ export const all: Pack = {
         v("RetroArch"),
         v("RetroArchAssets"),
         v("ppsspp"),
-        v("mgba"),
-        v("love2d"),
+        v("libretro-mgba"),
     ],
     async sync(): Promise<void> {
     },

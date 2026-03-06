@@ -1,5 +1,5 @@
 import {$} from "bun"
-import type {Pack} from "../scripts/pkg.ts";
+import type {Pack} from "../../../scripts/pkg.ts";
 
 export const boost: Pack = {
     name: "boost",

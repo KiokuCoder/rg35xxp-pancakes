@@ -1,6 +1,6 @@
 import {$} from "bun"
-import type {Pack} from "../scripts/pkg.ts";
-import {configureMakeMakeInstall} from "../scripts/helper.ts";
+import type {Pack} from "../../scripts/pkg.ts";
+import {configureMakeMakeInstall} from "../../scripts/helper.ts";
 
 const version = 'yaml-0.2.5';
 export const yaml: Pack = {

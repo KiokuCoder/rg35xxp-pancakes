@@ -1,6 +1,6 @@
-import type {Pack} from "../scripts/pkg.ts";
+import type {Pack} from "../../../scripts/pkg.ts";
 import {$} from "bun";
-import {cmakeBuild} from "../scripts/helper.ts";
+import {cmakeBuild} from "../../../scripts/helper.ts";
 
 export const glog: Pack = {
     name: "glog",

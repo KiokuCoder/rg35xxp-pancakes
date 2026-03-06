@@ -1,5 +1,5 @@
-import type {Pack} from "../scripts/pkg.ts";
-import {cmakeBuild} from "../scripts/helper.ts";
+import type {Pack} from "../../../scripts/pkg.ts";
+import {cmakeBuild} from "../../../scripts/helper.ts";
 import {$} from "bun";
 
 export const leveldb: Pack = {

@@ -1,4 +1,4 @@
-import type {Pack} from "../scripts/pkg.ts";
+import type {Pack} from "../../../scripts/pkg.ts";
 import {$} from "bun";
 
 export const marisa: Pack = {

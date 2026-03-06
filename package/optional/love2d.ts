@@ -1,7 +1,8 @@
 import { $ } from "bun"
-import {cmakeBuild, configureMakeMakeInstall, v} from "../scripts/helper.ts";
-import type { Pack } from "../scripts/pkg.ts";
+import {cmakeBuild, configureMakeMakeInstall, v} from "../../scripts/helper.ts";
+import type { Pack } from "../../scripts/pkg.ts";
 
+// 可以通过编译，但是无法正常启动游戏，需要打补丁
 const version = 'love-11.5';
 export const love2d: Pack = {
     name: "love2d",

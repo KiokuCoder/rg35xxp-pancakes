@@ -1,6 +1,6 @@
 import {$} from "bun"
-import type {Pack} from "../scripts/pkg.ts";
-import {cmakeBuild} from "../scripts/helper.ts";
+import type {Pack} from "../../../scripts/pkg.ts";
+import {cmakeBuild} from "../../../scripts/helper.ts";
 
 export const yamlCPP: Pack = {
     name: "yaml-cpp",

@@ -27,7 +27,7 @@ import {fontconfig} from "./fontconfig.ts";
 import {notoCJK} from "./noto-cjk.ts";
 import {libretroMgba as mGCore} from "./libretro-mgba.ts";
 import {sqlite3} from "./sqlite3.ts";
-import {libdrm} from "./libdrm.ts";
+import {libdrm} from "./optional/libdrm.ts";
 import {dbus} from "./dbus.ts";
 import {alsa} from "./alsa.ts";
 import {alsaUtils} from "./alsa-utils.ts";
@@ -60,7 +60,7 @@ import {xkbcommon} from "./optional/xkbcommon.ts";
 import {pam} from "./pam.ts";
 import {lua} from "./lua.ts";
 import {ltdl} from "./ltdl.ts";
-import {mgba} from "./mgba.ts";
+import {mgba} from "./optional/mgba.ts";
 import {adb} from "./adb.ts";
 import {rg35xxpFirmware} from "./rg35xxp-firmware.ts";
 import {skeleton} from "./skeleton.ts";
@@ -70,7 +70,7 @@ import {fribidi} from "./fribidi.ts";
 import {harfbuzz} from "./harfbuzz.ts";
 import {all} from "./all.ts";
 import {uboot} from "./u-boot.ts";
-import {moonlightEmbedded} from "./moonlight-embedded.ts";
+import {moonlightEmbedded} from "./optional/moonlight-embedded.ts";
 import {opus} from "./opus.ts";
 import {curl} from "./curl.ts";
 import {avahi} from "./avahi.ts";
@@ -88,17 +88,17 @@ import {SDLMixer} from "./sdl2-mixer.ts";
 import {qt5} from "./qt5.ts";
 import {nss} from "./nss.ts";
 import {icu} from "./icu.ts";
-import {boost} from "./boost.ts";
-import {librime} from "./librime.ts";
-import {yaml} from "./yaml.ts";
-import {opencc} from "./opencc.ts";
-import {marisa} from "./marisa.ts";
-import {leveldb} from "./leveldb.ts";
-import {glog} from "./glog.ts";
-import {yamlCPP} from "./yaml-cpp.ts";
+import {boost} from "./optional/rime/boost.ts";
+import {librime} from "./optional/rime/librime.ts";
+import {yaml} from "./optional/yaml.ts";
+import {opencc} from "./optional/rime/opencc.ts";
+import {marisa} from "./optional/rime/marisa.ts";
+import {leveldb} from "./optional/rime/leveldb.ts";
+import {glog} from "./optional/rime/glog.ts";
+import {yamlCPP} from "./optional/rime/yaml-cpp.ts";
 import rg35xxp from "./rg35xxp-apps.ts";
 import {ppsspp} from "./ppsspp.ts";
-import {love2d} from "./love2d.ts";
+import {love2d} from "./optional/love2d.ts";
 import {luajit} from "./luajit.ts";
 import {openal} from "./openal.ts";
 import {libmodplug, libmpg123} from "./libmodplug.ts";
@@ -107,7 +107,8 @@ import uutils from "./uutils.ts";
 import {iw} from "./iw.ts";
 import {tmux} from "./tmux.ts";
 import {rgtv} from "./rgtv.ts";
-import {miyoopod} from "./miyoopod.ts";
+import {miyoopod} from "./optional/miyoopod.ts";
+import {krkrsdl2} from "./optional/krkrsdl2.ts";
 
 register(all)
 register(avahi)
@@ -228,3 +229,4 @@ register(iw)
 register(tmux)
 register(rgtv)
 register(miyoopod)
+register(krkrsdl2)
