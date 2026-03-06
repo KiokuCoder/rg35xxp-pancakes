@@ -24,7 +24,6 @@ import {ffmpeg} from "./ffmpeg.ts";
 import {x264} from "./x264.ts";
 import {x265} from "./x265.ts";
 import {fontconfig} from "./fontconfig.ts";
-import {notoCJK} from "./noto-cjk.ts";
 import {libretroMgba as mGCore} from "./libretro-mgba.ts";
 import {sqlite3} from "./sqlite3.ts";
 import {libdrm} from "./optional/libdrm.ts";
@@ -144,7 +143,6 @@ register(ffmpeg)
 register(x264)
 register(x265)
 register(fontconfig)
-register(notoCJK)
 register(sqlite3)
 register(libdrm)
 register(dbus)

@@ -49,7 +49,6 @@ const launcher: Pack = {
     description: "",
     enable: true,
     dependencies: [
-        v("noto-cjk"),
         v("egl"),
     ],
     async sync({download}): Promise<void> {

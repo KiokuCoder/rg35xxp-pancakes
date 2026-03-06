@@ -3,8 +3,9 @@ import { Container, type Register, type TestNode } from "./scripts/container.ts"
 import type { Context } from "./scripts/config.ts";
 import { join } from "path";
 import { $ } from "bun";
+import {workspace} from "./scripts/pkg.ts";
 
-const ctx: Context = { dir: join(process.cwd(), "temp"), prefix: "/opt/aarch64-linux-gnu" }
+const ctx: Context = workspace;
 const container = new Container(ctx);
 
 const output = join(__dirname, "output");
@@ -29,7 +30,7 @@ const pack: TestNode<Context> = {
 
         // 3. Strip 二进制文件和共享库
         hook("release", "rootfs-slim-strip", async () => {
-            const strip = "aarch64-linux-gnu-strip";
+            const strip = join(__dirname, "output/aarch64-linux-gnu/bin/aarch64-linux-gnu-strip");
             // strip executables in usr/bin and usr/sbin
             for (const dir of ["usr/bin", "usr/sbin"]) {
                 await $`find ${dir} -type f -exec sh -c 'file "$1" | grep -q "ELF" && ${strip} --strip-all "$1" 2>/dev/null || true' _ {} \;`.cwd(slim);
