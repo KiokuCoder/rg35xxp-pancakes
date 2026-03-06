@@ -67,7 +67,7 @@ const launcher: Pack = {
         const bin = resource("apps/rg35xxp-iced/target/aarch64-unknown-linux-gnu/release/rg35xxp-launcher")
         await $`cp ${bin} ${rootfs('/sbin/rg35xxp-launcher')}`
         await $`cp -r ${resource("apps/rg35xxp-iced/apps")} ${rootfs('/root/apps')}`
-        await $`cp -r ${resource("apps/rg35xxp-iced/assets/material-design-icons")} ${rootfs('/usr/share/fonts/material-design-icons')}`
+        await $`cp -r ${resource("apps/rg35xxp-iced/assets/material-design-icons")} ${rootfs('/usr/share/fonts')}`
     }
 }
 const guard: Pack = {
