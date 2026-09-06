@@ -22,6 +22,7 @@ RUN ARCH=$(dpkg --print-architecture) && \
     tar -C /usr/local -xzf go.tar.gz && \
     rm go.tar.gz
 RUN echo 'set --export PATH /usr/local/go/bin $PATH' >> ~/.config/fish/config.fish
+RUN echo 'set --export PATH /work/output/aarch64-linux-gnu/bin $PATH' >> ~/.config/fish/config.fish
 
 WORKDIR /work
 ENTRYPOINT ["/usr/bin/fish"]

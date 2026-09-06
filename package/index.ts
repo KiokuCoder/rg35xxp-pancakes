@@ -101,6 +101,7 @@ import {love2d} from "./optional/love2d.ts";
 import {luajit} from "./luajit.ts";
 import {openal} from "./openal.ts";
 import {libmodplug, libmpg123} from "./libmodplug.ts";
+import {libADLMIDI} from "./libadlmidi.ts";
 import {ogg, theora, vorbis} from "./xiph.ts";
 import uutils from "./uutils.ts";
 import {iw} from "./iw.ts";
@@ -108,6 +109,9 @@ import {tmux} from "./tmux.ts";
 import {rgtv} from "./rgtv.ts";
 import {miyoopod} from "./optional/miyoopod.ts";
 import {krkrsdl2} from "./optional/krkrsdl2.ts";
+import {ROCreader} from "./ROCreader.ts";
+import {unicorn} from "./unicorn.ts";
+import {vmrp} from "./vmrp.ts";
 
 register(all)
 register(avahi)
@@ -223,8 +227,12 @@ register(ogg)
 register(vorbis)
 register(theora)
 register(libmpg123)
+register(libADLMIDI)
 register(iw)
 register(tmux)
 register(rgtv)
 register(miyoopod)
 register(krkrsdl2)
+register(ROCreader)
+register(unicorn)
+register(vmrp)
