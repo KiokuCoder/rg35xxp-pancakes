@@ -51,6 +51,40 @@
 6. `bridge.c`：把 `mr_playSound()`/`mr_stopSound()` 的原生分支接到 `sound.c`，
    并把 `mr_table` 里这两项从 `NULL` 补成实现——原来 ext 类型的 mrp 一放声音就会打印
    `Not yet implemented function` 然后 `exit(1)`。
+7. `bridge.c`：`mr_read()`/`memcpy()`/`memset()` 写完客户机内存后调用
+   `uc_ctl_remove_cache()` 让 unicorn 丢掉这段地址的翻译缓存，见下面的「翻译缓存失效」。
+   顺带把 `memcpy()`/`memset()` 的返回值从被截断的宿主机指针改成 `dst` 的客户机地址。
+8. `bridge.c`：`start_t`、`mr_c_function_P_t` 改成只用 `uint32` 存指针，
+   `DSM_REQUIRE_FUNCS.flags` 改成按客户机布局算偏移量写入，`hooks_init()` 分配的
+   内存改成清零，见下面的「64 位下的结构体布局」。
+
+
+## 翻译缓存失效
+
+dsm 在内存里换 mrp 的代码段是原地做的：日志里 gmnj 的代码解压到 `0x2B8080`(136288 字节)，
+后面 netpay 插件的代码又解压到同一个 `0x2B8080`(127136 字节)。而 `mr_read()`/`memcpy()`
+这些是直接往 `uc_mem_map_ptr()` 映射的宿主机内存里写的，绕过了 unicorn，QEMU 的自修改
+代码检测看不到这些写入，于是新代码地址上留着旧模块的翻译块，跑着跑着就会执行到上一个
+模块的指令。
+
+上游自带的是 unicorn 1.0.2（`windows/`、`wasm/unicorn/` 各带一份），这里链的是系统的
+unicorn 2，两者缓存策略不同，所以只有这边会崩。表现是 gmnj.mrp 在 netpay 插件装载之后
+必崩，`UC_MEM_WRITE_UNMAPPED` 写到 3、4 之类的地址上，而按当前内存反汇编那个 PC
+根本不是访存指令。
+
+
+## 64 位下的结构体布局
+
+和客户机共享的结构体不能直接用宿主机的 `sizeof`/成员赋值：客户机是 32 位，指针 4 字节，
+64 位宿主机上是 8 字节，成员偏移量对不上。上游只编译 mingw32 和 wasm，都是 32 位，
+所以碰不到。这里涉及三处：
+
+- `start_t`：`ext`/`entry` 写到了偏移 8/16，客户机按 4/8 读，结果 `mr_start_dsm()`
+  拿到的是 `ext=NULL`、`entry="start.mr"`。
+- `DSM_REQUIRE_FUNCS.flags`：排在 51 个函数指针后面，宿主机算出来是 408，客户机是 204，
+  客户机读到的其实是没初始化过的内存。
+- `mr_c_function_P_t.start_of_ER_RW`：只是启动时那句 `printf("%p")` 打印出的
+  `r9` 值不对（把后面的 `ER_RW_Length` 一起当成指针的高 32 位了）。
 
 
 ## 画面旋转

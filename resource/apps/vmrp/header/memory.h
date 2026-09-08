@@ -12,6 +12,7 @@
 #include "utils.h"
 
 void *my_mallocExt(uint32 len);
+void *my_mallocExt0(uint32 len);
 void my_freeExt(void *p);
 void initMemoryManager(uint32_t baseAddress, uint32_t len);
 

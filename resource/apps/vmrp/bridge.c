@@ -34,11 +34,13 @@
         uint32_t _v = ret;                    \
         uc_reg_write(uc, UC_ARM_REG_R0, &_v); \
     }
+// 这块内存和客户机共享，客户机是 32 位，指针必须写成 uint32，
+// 否则 64 位主机上后面几个成员的偏移量会和客户机对不上
 typedef struct mr_c_function_P_t {
-    uint8 *start_of_ER_RW;  // RW段指针
+    uint32 start_of_ER_RW;  // RW段指针(客户机地址)
     uint32 ER_RW_Length;    // RW长度
     int32 ext_type;         // ext启动类型，为1时表示ext启动
-    void *mrc_extChunk;     // ext模块描述段，下面的结构体。
+    uint32 mrc_extChunk;    // ext模块描述段，下面的结构体。
     int32 stack;            // stack shell 2008-2-28
 } mr_c_function_P_t;
 
@@ -47,7 +49,13 @@ static mr_c_function_P_t *mr_c_function_P;
 static void *dsm_require_funcs;
 static event_t *mr_c_event;  // 用于mrc_event参数传递的内存
 static event_t *dsm_event;   // 用于传递真实事件
-static start_t *mr_start_dsm_param;
+// 同上，start_t 里的三个 char* 在客户机侧是 4 字节
+typedef struct {
+    uint32 filename;
+    uint32 ext;
+    uint32 entry;
+} guest_start_t;
+static guest_start_t *mr_start_dsm_param;
 static uint32_t mr_extHelper_addr;
 
 static const char MUTEX_LOCK_FAIL[] = "mutex lock fail";
@@ -55,6 +63,18 @@ static const char MUTEX_UNLOCK_FAIL[] = "mutex unlock fail";
 static pthread_mutex_t mutex;
 
 static void runCode(uc_engine *uc, uint32_t startAddr, uint32_t stopAddr, bool isThumb);
+
+// mr_read()/memcpy()/memset() 是直接往 uc_mem_map_ptr() 映射的宿主机内存里写的，
+// 绕过了 unicorn，QEMU 的自修改代码检测看不到这些写入。dsm 会把 mrp 的代码段搬到堆上
+// 再执行，插件反复装卸时新代码会落在旧代码的地址上，不丢掉旧的翻译块就会跑到上一个
+// 模块的指令上去。上游自带 unicorn 1.0.2，这里链的是系统的 unicorn 2，缓存策略不同
+// 才暴露出来，所以写完之后要显式让 unicorn 丢掉这段地址的翻译缓存。
+static void invalidateCode(uc_engine *uc, uint32_t addr, uint32_t len) {
+    if (len == 0) {
+        return;
+    }
+    uc_ctl_remove_cache(uc, (uint64_t)addr, (uint64_t)addr + len);
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -105,7 +125,9 @@ static void br_memcpy(BridgeMap *o, uc_engine *uc) {
     uc_reg_read(uc, UC_ARM_REG_R0, &dst);
     uc_reg_read(uc, UC_ARM_REG_R1, &src);
     uc_reg_read(uc, UC_ARM_REG_R2, &n);
-    SET_RET_V((uint32_t)memcpy(getMrpMemPtr(dst), getMrpMemPtr(src), n));
+    memcpy(getMrpMemPtr(dst), getMrpMemPtr(src), n);
+    invalidateCode(uc, dst, n);
+    SET_RET_V(dst);  // memcpy() 返回 dst，这里要返回客户机地址而不是宿主机指针
 }
 
 static void br_memset(BridgeMap *o, uc_engine *uc) {
@@ -114,7 +136,9 @@ static void br_memset(BridgeMap *o, uc_engine *uc) {
     uc_reg_read(uc, UC_ARM_REG_R0, &dst);
     uc_reg_read(uc, UC_ARM_REG_R1, &value);
     uc_reg_read(uc, UC_ARM_REG_R2, &n);
-    SET_RET_V((uint32_t)memset(getMrpMemPtr(dst), value, n));
+    memset(getMrpMemPtr(dst), value, n);
+    invalidateCode(uc, dst, n);
+    SET_RET_V(dst);  // 同 memcpy
 }
 
 // 获取参数的工具方法，第一个参数n=0
@@ -198,6 +222,9 @@ static void br_mr_read(BridgeMap *o, uc_engine *uc) {
     uc_reg_read(uc, UC_ARM_REG_R2, &l);
     char *buf = getMrpMemPtr(p);
     ret = my_read(f, buf, l);
+    if (ret != (uint32_t)MR_FAILED) {
+        invalidateCode(uc, p, ret);
+    }
     LOG("ext call %s(%d, 0x%X, %u): %d\n", o->name, f, p, l, ret);
     SET_RET_V(ret);
 }
@@ -1119,7 +1146,7 @@ static void *hooks_init(uc_engine *uc, BridgeMap *map, uint32_t mapCount, uint32
     BridgeMap *obj;
     uIntMap *mobj;
     uint32_t addr;
-    void *ptr = my_mallocExt(size);
+    void *ptr = my_mallocExt0(size);  // 没登记在 funcMap 里的槽位必须是 0，不能是脏内存
     uint32_t startAddress = toMrpMemAddr(ptr);
 
     err = uc_hook_add(uc, &trace, UC_HOOK_CODE, hook_code, NULL, startAddress, startAddress + size, 0);
@@ -1174,16 +1201,22 @@ uc_err bridge_init(uc_engine *uc) {
     uint32_t len = 4 * countof(mr_table_funcMap);  // 因为都是指针，所以直接可以算出来总内存大小
     mr_table = hooks_init(uc, mr_table_funcMap, countof(mr_table_funcMap), len);
 
-    dsm_require_funcs = hooks_init(uc, dsm_require_funcs_funcMap, countof(dsm_require_funcs_funcMap), sizeof(DSM_REQUIRE_FUNCS));
+    // DSM_REQUIRE_FUNCS 里 flags 排在所有函数指针后面。这块内存客户机按 4 字节一项读，
+    // 不能用 sizeof/成员赋值——64 位主机上指针是 8 字节，flags 会写到客户机根本不看的
+    // 偏移上，而客户机读到的是没初始化过的内存。
+    uint32_t funcsCount = countof(dsm_require_funcs_funcMap);
+    uint32_t flagsPos = 4 * funcsCount;
+    dsm_require_funcs = hooks_init(uc, dsm_require_funcs_funcMap, funcsCount, flagsPos + 4);
 #ifdef __EMSCRIPTEN__
-    ((DSM_REQUIRE_FUNCS *)dsm_require_funcs)->flags = FLAG_USE_UTF8_FS;  // wasm文件系统是UTF8编码
+    uint32_t flags = FLAG_USE_UTF8_FS;  // wasm文件系统是UTF8编码
 #else
-    ((DSM_REQUIRE_FUNCS *)dsm_require_funcs)->flags = FLAG_USE_UTF8_EDIT;  // windows下文件系统是GBK编码，编辑框暂时用复制粘贴代替（需要utf8编码）
+    uint32_t flags = FLAG_USE_UTF8_EDIT;  // windows下文件系统是GBK编码，编辑框暂时用复制粘贴代替（需要utf8编码）
 #endif
+    uc_mem_write(uc, toMrpMemAddr(dsm_require_funcs) + flagsPos, &flags, 4);
 
     mr_c_event = my_mallocExt(sizeof(event_t));
     dsm_event = my_mallocExt(sizeof(event_t));
-    mr_start_dsm_param = my_mallocExt(sizeof(start_t));
+    mr_start_dsm_param = my_mallocExt(sizeof(guest_start_t));
     return UC_ERR_OK;
 }
 
@@ -1198,7 +1231,7 @@ uc_err bridge_ext_init(uc_engine *uc) {
     runCode(uc, CODE_ADDRESS + 8, CODE_ADDRESS, false);
 
     // mr_c_function.start_of_ER_RW 会被写入r9(SB)，指向的内存是用来存放全局变量的
-    printf("-----> r9:@%p\n", mr_c_function_P->start_of_ER_RW);
+    printf("-----> r9:@0x%X\n", mr_c_function_P->start_of_ER_RW);
     return UC_ERR_OK;
 }
 
@@ -1255,20 +1288,21 @@ int32_t bridge_dsm_mr_start_dsm(uc_engine *uc, char *filename, char *ext, char *
         exit(EXIT_FAILURE);
     }
 
-    mr_start_dsm_param->filename = (char *)copyStrToMrp(filename);
-    mr_start_dsm_param->ext = (char *)copyStrToMrp(ext);
-    mr_start_dsm_param->entry = entry ? (char *)copyStrToMrp(entry) : NULL;
+    mr_start_dsm_param->filename = copyStrToMrp(filename);
+    mr_start_dsm_param->ext = copyStrToMrp(ext);
+    mr_start_dsm_param->entry = entry ? copyStrToMrp(entry) : 0;
 
     int32_t v = bridge_mr_event(uc, MR_START_DSM, toMrpMemAddr(mr_start_dsm_param), 0);
 
-    my_freeExt(getMrpMemPtr((uint32_t)mr_start_dsm_param->filename));
-    mr_start_dsm_param->filename = NULL;
+    my_freeExt(getMrpMemPtr(mr_start_dsm_param->filename));
+    mr_start_dsm_param->filename = 0;
 
-    my_freeExt(getMrpMemPtr((uint32_t)mr_start_dsm_param->ext));
-    mr_start_dsm_param->ext = NULL;
+    my_freeExt(getMrpMemPtr(mr_start_dsm_param->ext));
+    mr_start_dsm_param->ext = 0;
 
     if (entry) {
-        my_freeExt(getMrpMemPtr((uint32_t)mr_start_dsm_param->entry));
+        my_freeExt(getMrpMemPtr(mr_start_dsm_param->entry));
+        mr_start_dsm_param->entry = 0;
     }
 
     if (pthread_mutex_unlock(&mutex) != 0) {
