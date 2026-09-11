@@ -94,4 +94,41 @@ const guard: Pack = {
     }
 }
 
-export default {init, launcher, guard};
+// gpui（Zed 的 UI 框架）示例程序，走 zed/crates/gpui_linux 里的 fbdev 后端（Mali EGL + evdev）
+const gpui: Pack = {
+    name: "rg35xxp-gpui",
+    version: "0.0.1",
+    description: "gpui (Zed's UI framework) demo running on the Mali fbdev EGL backend",
+    enable: false,
+    dependencies: [
+        v("egl"),
+    ],
+    async sync({download}): Promise<void> {
+    },
+    async make({output, resource, rootfs}): Promise<void> {
+        // 已经装好（比如镜像里预装了）就什么都不做，否则下载一次
+        await $`cargo build --release --target aarch64-unknown-linux-gnu`
+            .env({
+                ...process.env,
+                PKG_CONFIG_SYSROOT_DIR: rootfs(),
+                PKG_CONFIG_LIBDIR: `${rootfs('/usr/lib/pkgconfig')}:${rootfs('/usr/share/pkgconfig')}`,
+                LDFLAGS: `--sysroot=${rootfs()} -L${rootfs('/usr/lib64')}`,
+                CFLAGS: `--sysroot=${rootfs()}`,
+                CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: output('aarch64-linux-gnu/bin/aarch64-linux-gnu-gcc')
+            })
+            .cwd(resource("apps/rg35xxp-gpui"))
+        const bin = resource("apps/rg35xxp-gpui/target/aarch64-unknown-linux-gnu/release/rg35xxp-gpui")
+        await $`install -Dm 0755 ${bin} ${rootfs('usr/bin/rg35xxp-gpui')}`
+
+        // 通过 rg35xxp-guard 启动，电源键息屏、音量键才能用；程序里按 Menu 退出回到 launcher。
+        // icon 必须写：不写的话 launcher 会把目录本身当图片打开，然后跳过这个程序。
+        // icon.png 不存在时 launcher 用默认图标
+        await Bun.write(rootfs('root/apps/gpui/info.toml'), [
+            `name="gpui"`,
+            `cmd="rg35xxp-guard rg35xxp-gpui"`,
+            `icon="icon.png"`,
+        ].join('\n'));
+    }
+}
+
+export default {init, launcher, guard, gpui};

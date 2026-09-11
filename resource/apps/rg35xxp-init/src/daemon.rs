@@ -2,7 +2,7 @@ use crate::ctrl::*;
 use anyhow::anyhow;
 use nix::mount::{mount, umount, MsFlags};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::Write;
 use std::net::SocketAddr;
@@ -80,21 +80,23 @@ enum ManagerCmd {
     Restart { name: String },
     List { resp: tokio::sync::oneshot::Sender<Vec<ServiceInfo>> },
     GetLog { name: String, resp: tokio::sync::oneshot::Sender<Option<String>> },
-    ChildExited { name: String, status: std::process::ExitStatus },
+    ChildExited { name: String, id: u64, code: Option<i32> },
 }
 
 #[derive(Clone)]
 struct ServiceManager {
-    sender: tokio::sync::mpsc::Sender<ManagerCmd>,
+    sender: tokio::sync::mpsc::UnboundedSender<ManagerCmd>,
 }
 
 struct RunningState {
     token: CancellationToken,
+    /// 每次拉起进程都会分配一个新的实例号，用来丢弃上一个实例的退出事件
+    id: u64,
 }
 
 impl ServiceManager {
     pub fn new(configs: HashMap<String, Service>) -> Self {
-        let (tx, mut rx) = tokio::sync::mpsc::channel(32);
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
         let manager_sender = tx.clone();
 
         tokio::spawn(async move {
@@ -102,6 +104,8 @@ impl ServiceManager {
             let mut running: HashMap<String, RunningState> = HashMap::new();
             let mut last_status: HashMap<String, ServiceStatus> = HashMap::new();
             let mut logs: HashMap<String, Arc<Mutex<SimpleBuffer>>> = HashMap::new();
+            let mut pending_restart: HashSet<String> = HashSet::new();
+            let mut next_id: u64 = 0;
 
             while let Some(cmd) = rx.recv().await {
                 match cmd {
@@ -133,14 +137,13 @@ impl ServiceManager {
                         match command.spawn() {
                             Ok(mut child) => {
                                 let pid = child.id().unwrap();
+                                let id = next_id;
+                                next_id = next_id.wrapping_add(1);
                                 let token = CancellationToken::new();
                                 let child_token = token.clone();
                                 let tx_exit = manager_sender.clone();
                                 let name_clone = name.clone();
 
-                                if !logs.contains_key(&name) {
-                                    logs.insert(name.clone(), Arc::new(Mutex::new(SimpleBuffer::new())));
-                                }
                                 let log_buffer = logs.entry(name.clone())
                                     .or_insert_with(|| Arc::new(Mutex::new(SimpleBuffer::new())));
                                 let stdout = child.stdout.take().unwrap();
@@ -169,17 +172,15 @@ impl ServiceManager {
                                 log!("Service '{}' (PID: {}) started", name, pid);
 
                                 tokio::spawn(async move {
-                                    tokio::select! {
+                                    let status = tokio::select! {
                                         _ = child_token.cancelled() => {
                                             let _ = child.kill().await;
-                                            if let Ok(status) = child.wait().await {
-                                                let _ = tx_exit.send(ManagerCmd::ChildExited { name: name_clone, status }).await;
-                                            }
+                                            child.wait().await
                                         }
-                                        Ok(status) = child.wait() => {
-                                            let _ = tx_exit.send(ManagerCmd::ChildExited { name: name_clone, status }).await;
-                                        }
-                                    }
+                                        status = child.wait() => status,
+                                    };
+                                    let code = status.ok().and_then(|s| s.code());
+                                    let _ = tx_exit.send(ManagerCmd::ChildExited { name: name_clone, id, code });
                                 });
 
                                 let start_time = std::time::SystemTime::now()
@@ -187,7 +188,7 @@ impl ServiceManager {
                                     .unwrap_or_default()
                                     .as_secs();
 
-                                running.insert(name.clone(), RunningState { token });
+                                running.insert(name.clone(), RunningState { token, id });
                                 last_status.insert(name, ServiceStatus::Running { pid, start_time });
                             }
                             Err(e) => {
@@ -197,15 +198,21 @@ impl ServiceManager {
                         }
                     }
                     ManagerCmd::Stop { name } => {
-                        if let Some(state) = running.remove(&name) {
+                        // 显式停止会取消尚未完成的重启
+                        pending_restart.remove(&name);
+                        if let Some(state) = running.get(&name) {
                             state.token.cancel();
                         }
+                        // 条目保留到 ChildExited 到达时再清理，保证状态与实际进程一致
                     }
                     ManagerCmd::Restart { name } => {
-                        if let Some(state) = running.remove(&name) {
+                        if let Some(state) = running.get(&name) {
+                            // 等旧进程真正退出后再拉起新的，避免端口/设备被占用
+                            pending_restart.insert(name.clone());
                             state.token.cancel();
+                        } else {
+                            let _ = manager_sender.send(ManagerCmd::Start { name });
                         }
-                        let _ = manager_sender.send(ManagerCmd::Start { name }).await;
                     }
                     ManagerCmd::List { resp } => {
                         let mut list = Vec::new();
@@ -229,10 +236,18 @@ impl ServiceManager {
                             let _ = resp.send(None);
                         }
                     }
-                    ManagerCmd::ChildExited { name, status } => {
-                        log!("Service '{}' exited with status: {}", name, status);
+                    ManagerCmd::ChildExited { name, id, code } => {
+                        // 只接受当前实例的退出事件，旧实例的事件会覆盖掉新进程的状态
+                        if running.get(&name).map(|s| s.id) != Some(id) {
+                            log!("Ignore stale exit event of service '{}' (instance {})", name, id);
+                            continue;
+                        }
+                        log!("Service '{}' (instance {}) exited with code: {:?}", name, id, code);
                         running.remove(&name);
-                        last_status.insert(name, ServiceStatus::Stopped { exit_code: status.code() });
+                        last_status.insert(name.clone(), ServiceStatus::Stopped { exit_code: code });
+                        if pending_restart.remove(&name) {
+                            let _ = manager_sender.send(ManagerCmd::Start { name });
+                        }
                     }
                 }
             }
@@ -242,26 +257,26 @@ impl ServiceManager {
     }
 
     pub async fn start(&self, name: &str) {
-        let _ = self.sender.send(ManagerCmd::Start { name: name.to_string() }).await;
+        let _ = self.sender.send(ManagerCmd::Start { name: name.to_string() });
     }
 
     pub async fn stop(&self, name: &str) {
-        let _ = self.sender.send(ManagerCmd::Stop { name: name.to_string() }).await;
+        let _ = self.sender.send(ManagerCmd::Stop { name: name.to_string() });
     }
 
     pub async fn restart(&self, name: &str) {
-        let _ = self.sender.send(ManagerCmd::Restart { name: name.to_string() }).await;
+        let _ = self.sender.send(ManagerCmd::Restart { name: name.to_string() });
     }
 
     pub async fn list(&self) -> Vec<ServiceInfo> {
         let (tx, rx) = tokio::sync::oneshot::channel();
-        let _ = self.sender.send(ManagerCmd::List { resp: tx }).await;
+        let _ = self.sender.send(ManagerCmd::List { resp: tx });
         rx.await.unwrap_or_default()
     }
 
     pub async fn get_log(&self, name: &str) -> Option<String> {
         let (tx, rx) = tokio::sync::oneshot::channel();
-        let _ = self.sender.send(ManagerCmd::GetLog { name: name.to_string(), resp: tx }).await;
+        let _ = self.sender.send(ManagerCmd::GetLog { name: name.to_string(), resp: tx });
         rx.await.unwrap_or_default()
     }
 }
